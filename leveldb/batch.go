@@ -45,6 +45,7 @@ type batchIndex struct {
 	keyType            keyType
 	keyPos, keyLen     int
 	valuePos, valueLen int
+	version            uint64 // Version number for versioned keys
 }
 
 func (index batchIndex) k(data []byte) []byte {
@@ -91,16 +92,29 @@ func (b *Batch) grow(n int) {
 }
 
 func (b *Batch) appendRec(kt keyType, key, value []byte) {
+	b.appendRecWithVersion(kt, key, value, 0)
+}
+
+// appendRecWithVersion appends a record with version number
+func (b *Batch) appendRecWithVersion(kt keyType, key, value []byte, version uint64) {
 	n := 1 + binary.MaxVarintLen32 + len(key)
 	if kt == keyTypeVal {
 		n += binary.MaxVarintLen32 + len(value)
 	}
+	// Add space for version if non-zero
+	if version > 0 {
+		n += binary.MaxVarintLen64
+	}
 	b.grow(n)
-	index := batchIndex{keyType: kt}
+	index := batchIndex{keyType: kt, version: version}
 	o := len(b.data)
 	data := b.data[:o+n]
 	data[o] = byte(kt)
 	o++
+	// Write version if present
+	if version > 0 {
+		o += binary.PutUvarint(data[o:], version)
+	}
 	o += binary.PutUvarint(data[o:], uint64(len(key)))
 	index.keyPos = o
 	index.keyLen = len(key)
@@ -113,7 +127,12 @@ func (b *Batch) appendRec(kt keyType, key, value []byte) {
 	}
 	b.data = data[:o]
 	b.index = append(b.index, index)
-	b.internalLen += index.keyLen + index.valueLen + 8
+	// For versioned keys, internal length includes version (16 bytes total)
+	if version > 0 {
+		b.internalLen += index.keyLen + index.valueLen + 16
+	} else {
+		b.internalLen += index.keyLen + index.valueLen + 8
+	}
 }
 
 // Put appends 'put operation' of the given key/value pair to the batch.
@@ -121,6 +140,11 @@ func (b *Batch) appendRec(kt keyType, key, value []byte) {
 // before.
 func (b *Batch) Put(key, value []byte) {
 	b.appendRec(keyTypeVal, key, value)
+}
+
+// PutWithVersion appends 'put operation' with version number
+func (b *Batch) PutWithVersion(key, value []byte, version uint64) {
+	b.appendRecWithVersion(keyTypeVal, key, value, version)
 }
 
 // Delete appends 'delete operation' of the given key to the batch.
@@ -220,7 +244,11 @@ func (b *Batch) decode(data []byte, expectedLen int) error {
 func (b *Batch) putMem(seq uint64, mdb *memdb.DB) error {
 	var ik []byte
 	for i, index := range b.index {
-		ik = makeInternalKey(ik, index.k(b.data), seq+uint64(i), index.keyType)
+		if index.version > 0 {
+			ik = makeInternalKeyWithVersion(ik, index.k(b.data), index.version, seq+uint64(i), index.keyType)
+		} else {
+			ik = makeInternalKey(ik, index.k(b.data), seq+uint64(i), index.keyType)
+		}
 		if err := mdb.Put(ik, index.v(b.data)); err != nil {
 			return err
 		}

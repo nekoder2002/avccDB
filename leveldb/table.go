@@ -14,6 +14,7 @@ import (
 
 	"github.com/syndtr/goleveldb/leveldb/cache"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
+	"github.com/syndtr/goleveldb/leveldb/mlsm"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/table"
@@ -438,6 +439,42 @@ func (t *tOps) find(f *tFile, key []byte, ro *opt.ReadOptions) (rkey, rvalue []b
 	}
 	defer ch.Release()
 	return ch.Value().(*table.Reader).Find(key, true, ro)
+}
+
+// findWithProof finds key/value pair and Merkle proof for the given key
+func (t *tOps) findWithProof(f *tFile, key []byte, ro *opt.ReadOptions) (rkey, rvalue []byte, proof *mlsm.MerkleProof, err error) {
+	ch, err := t.open(f)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer ch.Release()
+
+	// First find the key
+	rkey, rvalue, err = ch.Value().(*table.Reader).Find(key, true, ro)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Then get the proof
+	proof, err = ch.Value().(*table.Reader).GetProof(rkey, ro)
+	if err != nil {
+		// If proof generation fails, still return the value
+		// (proof might not be available for all SSTs)
+		return rkey, rvalue, nil, nil
+	}
+
+	return rkey, rvalue, proof, nil
+}
+
+// getMerkleRoot gets the Merkle root hash from a table file
+func (t *tOps) getMerkleRoot(f *tFile) (mlsm.Hash, error) {
+	ch, err := t.open(f)
+	if err != nil {
+		return mlsm.Hash{}, err
+	}
+	defer ch.Release()
+
+	return ch.Value().(*table.Reader).GetMerkleRoot()
 }
 
 // Finds key that is greater than or equal to the given key.

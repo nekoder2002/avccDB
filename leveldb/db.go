@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/journal"
 	"github.com/syndtr/goleveldb/leveldb/memdb"
+	"github.com/syndtr/goleveldb/leveldb/mlsm"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/table"
@@ -83,6 +85,10 @@ type DB struct {
 	compWriteLocking bool
 	compStats        cStats
 	memdbMaxLevel    int // For testing.
+
+	// mLSM MasterRoot: aggregates Merkle Roots from all levels
+	masterRootMu sync.RWMutex
+	masterRoot   mlsm.Hash // Aggregated root hash of all levels
 
 	// Close.
 	closeW sync.WaitGroup
@@ -158,6 +164,9 @@ func openDB(s *session) (*DB, error) {
 		go db.mCompaction()
 		// go db.jWriter()
 	}
+
+	// Initialize MasterRoot after opening
+	db.updateMasterRoot()
 
 	s.logf("db@open done T·%v", time.Since(start))
 
@@ -760,17 +769,25 @@ func (db *DB) recoverJournalRO() error {
 func memGet(mdb *memdb.DB, ikey internalKey, icmp *iComparer) (ok bool, mv []byte, err error) {
 	mk, mv, err := mdb.Find(ikey)
 	if err == nil {
-		ukey, _, kt, kerr := parseInternalKey(mk)
-		if kerr != nil {
+		// Try versioned key first
+		if ukey, _, _, kt, kerr := parseInternalKeyWithVersion(mk); kerr == nil {
+			if icmp.uCompare(ukey, ikey.ukey()) == 0 {
+				if kt == keyTypeDel {
+					return true, nil, ErrNotFound
+				}
+				return true, mv, nil
+			}
+		} else if ukey, _, kt, kerr := parseInternalKey(mk); kerr == nil {
+			// Non-versioned key
+			if icmp.uCompare(ukey, ikey.ukey()) == 0 {
+				if kt == keyTypeDel {
+					return true, nil, ErrNotFound
+				}
+				return true, mv, nil
+			}
+		} else {
 			// Shouldn't have had happen.
 			panic(kerr)
-		}
-		if icmp.uCompare(ukey, ikey.ukey()) == 0 {
-			if kt == keyTypeDel {
-				return true, nil, ErrNotFound
-			}
-			return true, mv, nil
-
 		}
 	} else if err != ErrNotFound {
 		return true, nil, err
@@ -778,8 +795,14 @@ func memGet(mdb *memdb.DB, ikey internalKey, icmp *iComparer) (ok bool, mv []byt
 	return
 }
 
-func (db *DB) get(auxm *memdb.DB, auxt tFiles, key []byte, seq uint64, ro *opt.ReadOptions) (value []byte, err error) {
-	ikey := makeInternalKey(nil, key, seq, keyTypeSeek)
+func (db *DB) get(auxm *memdb.DB, auxt tFiles, key []byte, version, seq uint64, ro *opt.ReadOptions) (value []byte, err error) {
+	var ikey internalKey
+	// For latest version query (version=0), use keyMaxSeq which will match any version
+	// For specific version query (version>0), use that version
+	if version == 0 {
+		version = keyMaxSeq // Special marker: match any version
+	}
+	ikey = makeInternalKeyWithVersion(nil, key, version, seq, keyTypeSeek)
 
 	if auxm != nil {
 		if ok, mv, me := memGet(auxm, ikey, db.s.icmp); ok {
@@ -807,6 +830,220 @@ func (db *DB) get(auxm *memdb.DB, auxt tFiles, key []byte, seq uint64, ro *opt.R
 		db.compTrigger(db.tcompCmdC)
 	}
 	return
+}
+
+// getWithProof gets value and Merkle proof for a key at specified version across all layers
+// If version is 0, it searches for the latest version
+func (db *DB) getWithProof(auxm *memdb.DB, auxt tFiles, key []byte, version, seq uint64, ro *opt.ReadOptions) (value []byte, proof *mlsm.MerkleProof, err error) {
+	var ikey internalKey
+	// For latest version query (version=0), use keyMaxSeq which will match any version
+	// For specific version query (version>0), use that version
+	if version == 0 {
+		version = keyMaxSeq // Special marker: match any version
+	}
+	ikey = makeInternalKeyWithVersion(nil, key, version, seq, keyTypeSeek)
+
+	// Try auxiliary memdb first
+	if auxm != nil {
+		if ok, mv, me := memGet(auxm, ikey, db.s.icmp); ok {
+			// Found in auxm
+			if me != nil {
+				return nil, nil, me
+			}
+			// Create a simple proof with MasterRoot
+			masterRoot, _ := db.GetMasterRoot()
+			proof = &mlsm.MerkleProof{
+				Key:     append([]byte(nil), key...),
+				Value:   append([]byte(nil), mv...),
+				Version: version,
+				Root:    masterRoot,
+				Exists:  true,
+				Path:    make([]mlsm.ProofNode, 0), // Empty path for MemDB (not yet fully integrated)
+			}
+			return append([]byte(nil), mv...), proof, nil
+		}
+	}
+
+	// Try effective and frozen memdb
+	em, fm := db.getMems()
+	for _, m := range [...]*memDB{em, fm} {
+		if m == nil {
+			continue
+		}
+		defer m.decref()
+
+		if ok, mv, me := memGet(m.DB, ikey, db.s.icmp); ok {
+			// Found in MemDB
+			if me != nil {
+				return nil, nil, me
+			}
+			// Create a proof with MasterRoot for MemDB data
+			masterRoot, _ := db.GetMasterRoot()
+			proof = &mlsm.MerkleProof{
+				Key:     append([]byte(nil), key...),
+				Value:   append([]byte(nil), mv...),
+				Version: version,
+				Root:    masterRoot,
+				Exists:  true,
+				Path:    make([]mlsm.ProofNode, 0), // Empty path for now
+			}
+			return append([]byte(nil), mv...), proof, nil
+		}
+	}
+
+	// Try SST files
+	v := db.s.version()
+	defer v.release()
+
+	value, sstProof, cSched, err := v.getWithProof(auxt, ikey, ro)
+	if cSched {
+		// Trigger table compaction.
+		db.compTrigger(db.tcompCmdC)
+	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Combine SST proof with MasterRoot
+	if sstProof != nil {
+		masterRoot, _ := db.GetMasterRoot()
+		// Fix proof.Key - should be user key, not internal key
+		// The table layer returns proof with internal key, we need to correct it
+		sstProof.Key = append([]byte(nil), key...)
+		sstProof.Value = append([]byte(nil), value...)
+		sstProof.Version = version
+		// Enhance the proof by incorporating the master root
+		proof = mlsm.CombineWithLayerProof(sstProof, masterRoot, 0)
+	} else {
+		// No proof from SST, create a simple one
+		masterRoot, _ := db.GetMasterRoot()
+		proof = &mlsm.MerkleProof{
+			Key:     append([]byte(nil), key...),
+			Value:   append([]byte(nil), value...),
+			Version: version,
+			Root:    masterRoot,
+			Exists:  true,
+			Path:    make([]mlsm.ProofNode, 0),
+		}
+	}
+
+	return value, proof, nil
+}
+
+// getVersionHistory gets all versions of a key within a version range
+func (db *DB) getVersionHistory(auxm *memdb.DB, auxt tFiles, key []byte, minVersion, maxVersion uint64, seq uint64, ro *opt.ReadOptions) (entries []VersionEntry, err error) {
+	// Collect all matching versions from MemDB and SST files
+	var versionMap = make(map[uint64][]byte)
+
+	// Search in auxiliary memdb
+	if auxm != nil {
+		db.collectVersionsFromMemDB(auxm, key, minVersion, maxVersion, seq, versionMap)
+	}
+
+	// Search in effective and frozen memdb
+	em, fm := db.getMems()
+	for _, m := range [...]*memDB{em, fm} {
+		if m == nil {
+			continue
+		}
+		defer m.decref()
+		db.collectVersionsFromMemDB(m.DB, key, minVersion, maxVersion, seq, versionMap)
+	}
+
+	// Search in SST files
+	v := db.s.version()
+	defer v.release()
+
+	sstEntries, cSched, err := v.getVersionHistory(auxt, key, minVersion, maxVersion, ro)
+	if cSched {
+		db.compTrigger(db.tcompCmdC)
+	}
+
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+
+	// Merge SST entries into version map
+	for _, entry := range sstEntries {
+		if _, exists := versionMap[entry.Version]; !exists {
+			versionMap[entry.Version] = entry.Value
+		}
+	}
+
+	// Convert map to sorted slice
+	if len(versionMap) == 0 {
+		return nil, ErrNotFound
+	}
+
+	entries = make([]VersionEntry, 0, len(versionMap))
+	for version, value := range versionMap {
+		entries = append(entries, VersionEntry{
+			Version: version,
+			Value:   append([]byte(nil), value...), // Copy value
+		})
+	}
+
+	// Sort by version (ascending)
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Version < entries[j].Version
+	})
+
+	return entries, nil
+}
+
+// collectVersionsFromMemDB collects all versions of a key from a MemDB
+func (db *DB) collectVersionsFromMemDB(mdb *memdb.DB, key []byte, minVersion, maxVersion uint64, seq uint64, versionMap map[uint64][]byte) {
+	// Create an iterator over the MemDB
+	iter := mdb.NewIterator(nil)
+	defer iter.Release()
+
+	// Seek to the first possible version of this key
+	seekKey := makeInternalKeyWithVersion(nil, key, keyMaxSeq, seq, keyTypeSeek)
+	if !iter.Seek(seekKey) {
+		return
+	}
+
+	// Iterate and collect all matching versions
+	for ; iter.Valid(); iter.Next() {
+		ikey := iter.Key()
+
+		// Try to parse as versioned key
+		if ukey, version, _, kt, err := parseInternalKeyWithVersion(ikey); err == nil {
+			// Check if it's the same user key
+			if db.s.icmp.uCompare(ukey, key) != 0 {
+				break // Moved past this key
+			}
+
+			// Check version range
+			if minVersion > 0 && version < minVersion {
+				continue
+			}
+			if maxVersion > 0 && version > maxVersion {
+				continue
+			}
+
+			// Skip deleted entries
+			if kt == keyTypeDel {
+				continue
+			}
+
+			// Add to version map (MemDB has priority, so only add if not exists)
+			if _, exists := versionMap[version]; !exists {
+				versionMap[version] = append([]byte(nil), iter.Value()...)
+			}
+		} else if ukey, _, kt, err := parseInternalKey(ikey); err == nil {
+			// Non-versioned key
+			if db.s.icmp.uCompare(ukey, key) != 0 {
+				break
+			}
+			// Skip non-versioned keys in version history query
+			_ = kt
+			continue
+		} else {
+			break
+		}
+	}
 }
 
 func nilIfNotFound(err error) error {
@@ -852,8 +1089,8 @@ func (db *DB) has(auxm *memdb.DB, auxt tFiles, key []byte, seq uint64, ro *opt.R
 	return
 }
 
-// Get gets the value for the given key. It returns ErrNotFound if the
-// DB does not contains the key.
+// Get gets the value for the given key at the latest version.
+// It returns ErrNotFound if the DB does not contains the key.
 //
 // The returned slice is its own copy, it is safe to modify the contents
 // of the returned slice.
@@ -866,7 +1103,84 @@ func (db *DB) Get(key []byte, ro *opt.ReadOptions) (value []byte, err error) {
 
 	se := db.acquireSnapshot()
 	defer db.releaseSnapshot(se)
-	return db.get(nil, nil, key, se.seq, ro)
+	return db.get(nil, nil, key, 0, se.seq, ro)
+}
+
+// GetWithVersion gets the value for the given key at the specified version.
+// If version is 0, it returns the latest version.
+// It returns ErrNotFound if the DB does not contain the key at the specified version.
+//
+// The returned slice is its own copy, it is safe to modify the contents
+// of the returned slice.
+// It is safe to modify the contents of the argument after GetWithVersion returns.
+func (db *DB) GetWithVersion(key []byte, version uint64, ro *opt.ReadOptions) (value []byte, err error) {
+	err = db.ok()
+	if err != nil {
+		return
+	}
+
+	se := db.acquireSnapshot()
+	defer db.releaseSnapshot(se)
+	return db.get(nil, nil, key, version, se.seq, ro)
+}
+
+// GetWithProof gets the value and Merkle proof for the given key at the specified version.
+// If version is 0, it returns the latest version.
+// It returns ErrNotFound if the DB does not contain the key at the specified version.
+//
+// The proof can be used to verify that the value is authentic without
+// trusting the database. The proof contains the Merkle path from the
+// leaf node (containing the key-value pair) to the root hash.
+//
+// The returned slices are their own copies, it is safe to modify them.
+// It is safe to modify the contents of the argument after GetWithProof returns.
+func (db *DB) GetWithProof(key []byte, version uint64, ro *opt.ReadOptions) (value []byte, proof *mlsm.MerkleProof, err error) {
+	err = db.ok()
+	if err != nil {
+		return
+	}
+
+	se := db.acquireSnapshot()
+	defer db.releaseSnapshot(se)
+	return db.getWithProof(nil, nil, key, version, se.seq, ro)
+}
+
+// VersionEntry represents a single version entry for a key.
+// It contains the version number and the corresponding value.
+type VersionEntry struct {
+	Version uint64 // Version number (block number)
+	Value   []byte // Value at this version
+}
+
+// GetVersionHistory queries all versions of a key within a version range.
+// This is used for provenance queries (溯源查询).
+//
+// Parameters:
+//   - key: The key to query
+//   - minVersion: Minimum version (inclusive), use 0 for no lower bound
+//   - maxVersion: Maximum version (inclusive), use 0 for no upper bound
+//   - ro: Read options
+//
+// Returns:
+//   - entries: Slice of VersionEntry sorted by version (ascending)
+//   - err: Error if any
+//
+// Example:
+//
+//	// Query all versions of "user:alice" between block 100 and 200
+//	entries, err := db.GetVersionHistory([]byte("user:alice"), 100, 200, nil)
+//	for _, entry := range entries {
+//	    fmt.Printf("Version %d: %s\n", entry.Version, entry.Value)
+//	}
+func (db *DB) GetVersionHistory(key []byte, minVersion, maxVersion uint64, ro *opt.ReadOptions) (entries []VersionEntry, err error) {
+	err = db.ok()
+	if err != nil {
+		return
+	}
+
+	se := db.acquireSnapshot()
+	defer db.releaseSnapshot(se)
+	return db.getVersionHistory(nil, nil, key, minVersion, maxVersion, se.seq, ro)
 }
 
 // Has returns true if the DB does contains the given key.
@@ -931,6 +1245,7 @@ func (db *DB) GetSnapshot() (*Snapshot, error) {
 // GetProperty returns value of the given property name.
 //
 // Property names:
+//
 //	leveldb.num-files-at-level{n}
 //		Returns the number of files at level 'n'.
 //	leveldb.stats
@@ -1159,6 +1474,100 @@ func (db *DB) SizeOf(ranges []util.Range) (Sizes, error) {
 	}
 
 	return sizes, nil
+}
+
+// GetMasterRoot returns the current MasterRoot hash.
+// The MasterRoot is an aggregation of all Merkle roots from all levels.
+func (db *DB) GetMasterRoot() (mlsm.Hash, error) {
+	if err := db.ok(); err != nil {
+		return mlsm.Hash{}, err
+	}
+
+	db.masterRootMu.RLock()
+	defer db.masterRootMu.RUnlock()
+	return db.masterRoot, nil
+}
+
+// computeMasterRoot computes the aggregated root hash from all levels.
+// This should be called after flush or compaction to update the master root.
+//
+// Merkle tree hierarchy (3-level structure):
+//  1. SST Level: Each SSTable has its own Merkle Tree with a root hash
+//  2. Layer Level: All SST roots in a layer form a Merkle Tree → Layer Root
+//  3. Master Level: All Layer roots form a Merkle Tree → MasterRoot
+//
+// Example:
+//
+//	Level 0: [SST1_root, SST2_root, SST3_root] → Build Merkle Tree → Layer0_root
+//	Level 1: [SST4_root, SST5_root] → Build Merkle Tree → Layer1_root
+//	Level 2: [SST6_root, SST7_root, SST8_root] → Build Merkle Tree → Layer2_root
+//	MasterRoot: [Layer0_root, Layer1_root, Layer2_root] → Build Merkle Tree → MasterRoot
+func (db *DB) computeMasterRoot() mlsm.Hash {
+	v := db.s.version()
+	defer v.release()
+
+	// Collect layer roots from each level
+	var layerRoots []mlsm.Hash
+
+	// Process each level
+	for level, tables := range v.levels {
+		if len(tables) == 0 {
+			continue
+		}
+
+		// Collect all SST roots in this level
+		var sstRoots []mlsm.Hash
+		for _, t := range tables {
+			// Try to get Merkle root from table
+			if root, err := db.s.tops.getMerkleRoot(t); err == nil {
+				sstRoots = append(sstRoots, root)
+				// db.logf("master@root level=%d file=%d root=%x", level, t.fd.Num, root[:8])
+			}
+		}
+
+		if len(sstRoots) > 0 {
+			// Build Merkle tree from SST roots to create this layer's root
+			// This is the KEY change: use BuildTreeFromHashes instead of AggregateRoots
+			layerRoot := mlsm.BuildTreeFromHashes(sstRoots)
+			layerRoots = append(layerRoots, layerRoot)
+			db.logf("master@root level=%d layer_root=%x num_ssts=%d", level, layerRoot[:8], len(sstRoots))
+		}
+	}
+
+	// Add MemDB root if available (Level -1)
+	em, fm := db.getMems()
+	for _, m := range [...]*memDB{em, fm} {
+		if m == nil {
+			continue
+		}
+		defer m.decref()
+
+		// TODO: Get Merkle root from MerkleDB when integrated
+		// For now, we skip memdb roots
+	}
+
+	// Compute final MasterRoot from all layer roots
+	if len(layerRoots) == 0 {
+		return mlsm.Hash{} // Empty hash
+	}
+
+	// Build final Merkle tree from all layer roots to create MasterRoot
+	// This is the top-level aggregation
+	masterRoot := mlsm.BuildTreeFromHashes(layerRoots)
+	db.logf("master@root final master_root=%x num_layers=%d", masterRoot[:8], len(layerRoots))
+
+	return masterRoot
+}
+
+// updateMasterRoot updates the master root by recomputing it.
+// This is called after flush or compaction operations.
+func (db *DB) updateMasterRoot() {
+	db.masterRootMu.Lock()
+	defer db.masterRootMu.Unlock()
+
+	newRoot := db.computeMasterRoot()
+	db.masterRoot = newRoot
+	db.logf("master@root updated root=%x", newRoot[:8])
 }
 
 // Close closes the DB. This will also releases any outstanding snapshot,

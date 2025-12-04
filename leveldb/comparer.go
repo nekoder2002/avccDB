@@ -35,11 +35,65 @@ func (icmp *iComparer) Name() string {
 }
 
 func (icmp *iComparer) Compare(a, b []byte) int {
-	x := icmp.uCompare(internalKey(a).ukey(), internalKey(b).ukey())
+	// Check if keys have version (length >= 16)
+	hasVerA := hasVersion(a)
+	hasVerB := hasVersion(b)
+
+	var ukeyA, ukeyB []byte
+	var versionA, versionB uint64
+	var seqA, seqB uint64
+
+	if hasVerA {
+		ukeyA, versionA, seqA, _, _ = parseInternalKeyWithVersion(a)
+	} else {
+		ukeyA, seqA, _, _ = parseInternalKey(a)
+		versionA = 0
+	}
+
+	if hasVerB {
+		ukeyB, versionB, seqB, _, _ = parseInternalKeyWithVersion(b)
+	} else {
+		ukeyB, seqB, _, _ = parseInternalKey(b)
+		versionB = 0
+	}
+
+	// First compare user keys
+	x := icmp.uCompare(ukeyA, ukeyB)
 	if x == 0 {
-		if m, n := internalKey(a).num(), internalKey(b).num(); m > n {
+		// Same user key
+		// Special case: if either version is keyMaxSeq, compare by sequence only
+		// This ensures when querying with keyMaxSeq, we find the entry with max seq
+		if versionA == keyMaxSeq || versionB == keyMaxSeq {
+			// keyMaxSeq is a wildcard - compare by sequence to find the latest
+			// When both are keyMaxSeq, they're equal
+			if versionA == keyMaxSeq && versionB == keyMaxSeq {
+				// Both are wildcards, compare by sequence
+				if seqA > seqB {
+					return -1
+				} else if seqA < seqB {
+					return 1
+				}
+				return 0
+			}
+			// One is keyMaxSeq, one is actual version
+			// keyMaxSeq (query key) should sort before actual versions for Seek to work
+			// Since versions are descending, keyMaxSeq > any actual version
+			if versionA == keyMaxSeq {
+				return -1 // A (keyMaxSeq) < B (actual version), so A comes first
+			} else {
+				return 1 // B (keyMaxSeq) < A (actual version), so B comes first
+			}
+		}
+		// Normal case: compare version (descending - higher version first)
+		if versionA > versionB {
 			return -1
-		} else if m < n {
+		} else if versionA < versionB {
+			return 1
+		}
+		// Same version, compare sequence (descending - higher seq first)
+		if seqA > seqB {
+			return -1
+		} else if seqA < seqB {
 			return 1
 		}
 	}

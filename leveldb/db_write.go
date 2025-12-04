@@ -135,6 +135,7 @@ type writeMerge struct {
 	batch      *Batch
 	keyType    keyType
 	key, value []byte
+	version    uint64 // Version number for versioned writes
 }
 
 func (db *DB) unlockWrite(overflow bool, merged int, err error) {
@@ -195,6 +196,10 @@ func (db *DB) writeLocked(batch, ourBatch *Batch, merge, sync bool) error {
 				} else {
 					// Merge put.
 					internalLen := len(incoming.key) + len(incoming.value) + 8
+					if incoming.version > 0 {
+						// If versioned, add 8 bytes for version
+						internalLen += 8
+					}
 					if internalLen > mergeLimit {
 						overflow = true
 						break merge
@@ -206,7 +211,11 @@ func (db *DB) writeLocked(batch, ourBatch *Batch, merge, sync bool) error {
 					}
 					// We can use same batch since concurrent write doesn't
 					// guarantee write order.
-					ourBatch.appendRec(incoming.keyType, incoming.key, incoming.value)
+					if incoming.version > 0 {
+						ourBatch.appendRecWithVersion(incoming.keyType, incoming.key, incoming.value, incoming.version)
+					} else {
+						ourBatch.appendRec(incoming.keyType, incoming.key, incoming.value)
+					}
 					mergeLimit -= internalLen
 				}
 				sync = sync || incoming.sync
@@ -373,6 +382,59 @@ func (db *DB) putRec(kt keyType, key, value []byte, wo *opt.WriteOptions) error 
 // before.
 func (db *DB) Put(key, value []byte, wo *opt.WriteOptions) error {
 	return db.putRec(keyTypeVal, key, value, wo)
+}
+
+// PutWithVersion sets the value for the given key with a specific version number.
+// The version number is typically used to represent block height in blockchain applications.
+// It overwrites any previous value for that key; a DB is not a multi-map.
+//
+// The version number allows multiple versions of the same key to coexist, sorted by version
+// in descending order (higher versions first).
+//
+// It is safe to modify the contents of the arguments after PutWithVersion returns but not before.
+func (db *DB) PutWithVersion(key, value []byte, version uint64, wo *opt.WriteOptions) error {
+	if err := db.ok(); err != nil {
+		return err
+	}
+
+	merge := !wo.GetNoWriteMerge() && !db.s.o.GetNoWriteMerge()
+	sync := wo.GetSync() && !db.s.o.GetNoSync()
+
+	// Acquire write lock.
+	if merge {
+		select {
+		case db.writeMergeC <- writeMerge{sync: sync, keyType: keyTypeVal, key: key, value: value, version: version}:
+			if <-db.writeMergedC {
+				// Write is merged.
+				return <-db.writeAckC
+			}
+			// Write is not merged, the write lock is handed to us. Continue.
+		case db.writeLockC <- struct{}{}:
+			// Write lock acquired.
+		case err := <-db.compPerErrC:
+			// Compaction error.
+			return err
+		case <-db.closeC:
+			// Closed
+			return ErrClosed
+		}
+	} else {
+		select {
+		case db.writeLockC <- struct{}{}:
+			// Write lock acquired.
+		case err := <-db.compPerErrC:
+			// Compaction error.
+			return err
+		case <-db.closeC:
+			// Closed
+			return ErrClosed
+		}
+	}
+
+	batch := db.batchPool.Get().(*Batch)
+	batch.Reset()
+	batch.appendRecWithVersion(keyTypeVal, key, value, version)
+	return db.writeLocked(batch, batch, merge, sync)
 }
 
 // Delete deletes the value for the given key. Delete will not returns error if

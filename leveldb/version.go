@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/syndtr/goleveldb/leveldb/iterator"
+	"github.com/syndtr/goleveldb/leveldb/mlsm"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -145,6 +146,13 @@ func (v *version) get(aux tFiles, ikey internalKey, ro *opt.ReadOptions, noValue
 
 	ukey := ikey.ukey()
 	sampleSeeks := !v.s.o.GetDisableSeeksCompaction()
+	// Extract target version from query key
+	// If query key is non-versioned (len<16), hasTargetVersion will be false
+	// If version is keyMaxSeq, it's a wildcard (match any version)
+	targetVersion, hasTargetVersion := extractVersion(ikey)
+	if targetVersion == keyMaxSeq {
+		hasTargetVersion = false // keyMaxSeq is a wildcard
+	}
 
 	var (
 		tset  *tSet
@@ -189,8 +197,44 @@ func (v *version) get(aux tFiles, ikey internalKey, ro *opt.ReadOptions, noValue
 			return false
 		}
 
-		if fukey, fseq, fkt, fkerr := parseInternalKey(fikey); fkerr == nil {
+		// Try to parse as versioned key first
+		if fukey, fversion, fseq, fkt, fkerr := parseInternalKeyWithVersion(fikey); fkerr == nil {
 			if v.s.icmp.uCompare(ukey, fukey) == 0 {
+				// Check version match if version is specified
+				if hasTargetVersion && fversion != targetVersion {
+					// Version mismatch, continue searching
+					return true
+				}
+				// If no version specified (hasTargetVersion=false), accept any version
+
+				// Level <= 0 may overlaps each-other.
+				// When querying latest version (hasTargetVersion=false), we need to compare seq
+				// even for level > 0, because the same user key might have multiple versions
+				if level <= 0 || !hasTargetVersion {
+					if fseq >= zseq {
+						zfound = true
+						zseq = fseq
+						zkt = fkt
+						zval = fval
+					}
+				} else {
+					// Specific version requested and found
+					switch fkt {
+					case keyTypeVal:
+						value = fval
+						err = nil
+					case keyTypeDel:
+					default:
+						panic("leveldb: invalid internalKey type")
+					}
+					return false
+				}
+			}
+		} else if fukey, fseq, fkt, fkerr := parseInternalKey(fikey); fkerr == nil {
+			// Non-versioned key
+			if v.s.icmp.uCompare(ukey, fukey) == 0 {
+				// Non-versioned keys are always acceptable when no specific version requested
+
 				// Level <= 0 may overlaps each-other.
 				if level <= 0 {
 					if fseq >= zseq {
@@ -238,6 +282,253 @@ func (v *version) get(aux tFiles, ikey internalKey, ro *opt.ReadOptions, noValue
 	}
 
 	return
+}
+
+// getWithProof gets value and Merkle proof from SST files
+func (v *version) getWithProof(aux tFiles, ikey internalKey, ro *opt.ReadOptions) (value []byte, proof *mlsm.MerkleProof, tcomp bool, err error) {
+	if v.closing {
+		return nil, nil, false, ErrClosed
+	}
+
+	ukey := ikey.ukey()
+	sampleSeeks := !v.s.o.GetDisableSeeksCompaction()
+	// Extract target version from query key
+	// If query key is non-versioned (len<16), hasTargetVersion will be false
+	// If version is keyMaxSeq, it's a wildcard (match any version)
+	targetVersion, hasTargetVersion := extractVersion(ikey)
+	if targetVersion == keyMaxSeq {
+		hasTargetVersion = false // keyMaxSeq is a wildcard
+	}
+
+	var (
+		tset  *tSet
+		tseek bool
+
+		// Level-0.
+		zfound bool
+		zseq   uint64
+		zkt    keyType
+		zval   []byte
+		zproof *mlsm.MerkleProof
+	)
+
+	err = ErrNotFound
+
+	// Walk through levels to find the key
+	v.walkOverlapping(aux, ikey, func(level int, t *tFile) bool {
+		if sampleSeeks && level >= 0 && !tseek {
+			if tset == nil {
+				tset = &tSet{level, t}
+			} else {
+				tseek = true
+			}
+		}
+
+		// Try to get value with proof from table
+		fikey, fval, fproof, ferr := v.s.tops.findWithProof(t, ikey, ro)
+
+		switch ferr {
+		case nil:
+		case ErrNotFound:
+			return true
+		default:
+			err = ferr
+			return false
+		}
+
+		// Try to parse as versioned key first
+		if fukey, fversion, fseq, fkt, fkerr := parseInternalKeyWithVersion(fikey); fkerr == nil {
+			if v.s.icmp.uCompare(ukey, fukey) == 0 {
+				// Check version match if version is specified
+				if hasTargetVersion && fversion != targetVersion {
+					// Version mismatch, continue searching
+					return true
+				}
+				// If no version specified, accept any version
+
+				// Level <= 0 may overlaps each-other.
+				// When querying latest version (hasTargetVersion=false), we need to compare seq
+				// even for level > 0, because the same user key might have multiple versions
+				if level <= 0 || !hasTargetVersion {
+					if fseq >= zseq {
+						zfound = true
+						zseq = fseq
+						zkt = fkt
+						zval = fval
+						zproof = fproof
+					}
+				} else {
+					// Specific version requested and found
+					switch fkt {
+					case keyTypeVal:
+						value = fval
+						proof = fproof
+						err = nil
+					case keyTypeDel:
+					default:
+						panic("leveldb: invalid internalKey type")
+					}
+					return false
+				}
+			}
+		} else if fukey, fseq, fkt, fkerr := parseInternalKey(fikey); fkerr == nil {
+			// Non-versioned key
+			if v.s.icmp.uCompare(ukey, fukey) == 0 {
+				// Non-versioned keys are always acceptable
+
+				// Level <= 0 may overlaps each-other.
+				if level <= 0 {
+					if fseq >= zseq {
+						zfound = true
+						zseq = fseq
+						zkt = fkt
+						zval = fval
+						zproof = fproof
+					}
+				} else {
+					switch fkt {
+					case keyTypeVal:
+						value = fval
+						proof = fproof
+						err = nil
+					case keyTypeDel:
+					default:
+						panic("leveldb: invalid internalKey type")
+					}
+					return false
+				}
+			}
+		} else {
+			err = fkerr
+			return false
+		}
+
+		return true
+	}, func(level int) bool {
+		if zfound {
+			switch zkt {
+			case keyTypeVal:
+				value = zval
+				proof = zproof
+				err = nil
+			case keyTypeDel:
+			default:
+				panic("leveldb: invalid internalKey type")
+			}
+			return false
+		}
+
+		return true
+	})
+
+	if tseek && tset.table.consumeSeek() <= 0 {
+		tcomp = atomic.CompareAndSwapPointer(&v.cSeek, nil, unsafe.Pointer(tset))
+	}
+
+	return
+}
+
+// getVersionHistory gets all versions of a key within a version range from SST files
+func (v *version) getVersionHistory(aux tFiles, key []byte, minVersion, maxVersion uint64, ro *opt.ReadOptions) (entries []VersionEntry, tcomp bool, err error) {
+	if v.closing {
+		return nil, false, ErrClosed
+	}
+
+	// Use a temporary internal key for iteration
+	ikey := makeInternalKeyWithVersion(nil, key, keyMaxSeq, keyMaxSeq, keyTypeSeek)
+	ukey := ikey.ukey()
+	sampleSeeks := !v.s.o.GetDisableSeeksCompaction()
+
+	var (
+		tset       *tSet
+		tseek      bool
+		versionMap = make(map[uint64][]byte)
+	)
+
+	err = ErrNotFound
+
+	// Walk through all levels and collect all matching versions
+	v.walkOverlapping(aux, ikey, func(level int, t *tFile) bool {
+		if sampleSeeks && level >= 0 && !tseek {
+			if tset == nil {
+				tset = &tSet{level, t}
+			} else {
+				tseek = true
+			}
+		}
+
+		// Use an iterator to scan all entries in this table
+		iter := v.s.tops.newIterator(t, nil, ro)
+		defer iter.Release()
+
+		// Seek to the first possible version of this key
+		seekKey := makeInternalKeyWithVersion(nil, key, keyMaxSeq, keyMaxSeq, keyTypeSeek)
+		if !iter.Seek(seekKey) {
+			return true
+		}
+
+		// Collect all matching versions from this table
+		for ; iter.Valid(); iter.Next() {
+			fikey := iter.Key()
+
+			// Try to parse as versioned key first
+			if fukey, fversion, _, fkt, fkerr := parseInternalKeyWithVersion(fikey); fkerr == nil {
+				if v.s.icmp.uCompare(ukey, fukey) != 0 {
+					break // Moved past this key
+				}
+
+				// Check version range
+				if minVersion > 0 && fversion < minVersion {
+					continue
+				}
+				if maxVersion > 0 && fversion > maxVersion {
+					continue
+				}
+
+				// Skip deleted entries
+				if fkt == keyTypeDel {
+					continue
+				}
+
+				// Add to version map (only if not already exists from a higher level)
+				if _, exists := versionMap[fversion]; !exists {
+					versionMap[fversion] = append([]byte(nil), iter.Value()...)
+					err = nil // Found at least one version
+				}
+			} else if fukey, _, fkt, fkerr := parseInternalKey(fikey); fkerr == nil {
+				// Non-versioned key
+				if v.s.icmp.uCompare(ukey, fukey) != 0 {
+					break
+				}
+				// Skip non-versioned keys in version history query
+				_ = fkt
+				continue
+			} else {
+				break
+			}
+		}
+
+		return true // Continue to next table/level
+	}, nil)
+
+	if tseek && tset != nil && tset.table.consumeSeek() <= 0 {
+		tcomp = atomic.CompareAndSwapPointer(&v.cSeek, nil, unsafe.Pointer(tset))
+	}
+
+	// Convert version map to sorted entries
+	if len(versionMap) == 0 {
+		return nil, tcomp, ErrNotFound
+	}
+
+	entries = make([]VersionEntry, 0, len(versionMap))
+	for version, value := range versionMap {
+		entries = append(entries, VersionEntry{
+			Version: version,
+			Value:   value,
+		})
+	}
+
+	return entries, tcomp, nil
 }
 
 func (v *version) sampleSeek(ikey internalKey) (tcomp bool) {

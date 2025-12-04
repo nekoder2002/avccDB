@@ -16,6 +16,7 @@ import (
 
 	"github.com/syndtr/goleveldb/leveldb/comparer"
 	"github.com/syndtr/goleveldb/leveldb/filter"
+	"github.com/syndtr/goleveldb/leveldb/mlsm"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -167,6 +168,11 @@ type Writer struct {
 	scratch            [50]byte
 	comparerScratch    []byte
 	compressionScratch []byte
+
+	// Merkle tree support
+	blockHashes  []mlsm.Hash      // Hashes of all data blocks
+	merkleTree   *mlsm.MerkleNode // Root of Merkle tree
+	enableMerkle bool             // Enable Merkle tree generation
 }
 
 func (w *Writer) writeBlock(buf *util.Buffer, compression opt.Compression) (bh blockHandle, err error) {
@@ -233,6 +239,14 @@ func (w *Writer) finishBlock() error {
 	if err := w.dataBlock.finish(); err != nil {
 		return err
 	}
+
+	// Compute block hash before writing if Merkle enabled
+	if w.enableMerkle {
+		blockData := w.dataBlock.buf.Bytes()
+		blockHash := mlsm.HashBlock(blockData)
+		w.blockHashes = append(w.blockHashes, blockHash)
+	}
+
 	bh, err := w.writeBlock(&w.dataBlock.buf, w.compression)
 	if err != nil {
 		return err
@@ -329,6 +343,46 @@ func (w *Writer) Close() error {
 		return err
 	}
 
+	// Build Merkle tree if enabled
+	var merkleBH blockHandle
+	if w.enableMerkle && len(w.blockHashes) > 0 {
+		// Build Merkle tree from block hashes
+		builder := mlsm.NewTreeBuilder(nil)
+		for i, hash := range w.blockHashes {
+			// Create leaf node for each block hash
+			// Use block index as key
+			key := make([]byte, 8)
+			binary.BigEndian.PutUint64(key, uint64(i))
+			value := hash.Bytes()
+			if err := builder.AddLeaf(key, value, 0); err != nil {
+				w.err = err
+				return w.err
+			}
+		}
+
+		root, err := builder.Build()
+		if err != nil {
+			w.err = err
+			return w.err
+		}
+		w.merkleTree = root
+
+		// Serialize Merkle tree to compact format
+		compactFormat := mlsm.BuildCompactFormat(root)
+		merkleData, err := compactFormat.Marshal()
+		if err != nil {
+			w.err = err
+			return w.err
+		}
+
+		// Write Merkle tree block
+		merkleBuf := util.NewBuffer(merkleData)
+		merkleBH, w.err = w.writeBlock(merkleBuf, opt.NoCompression)
+		if w.err != nil {
+			return w.err
+		}
+	}
+
 	// Write the filter block.
 	var filterBH blockHandle
 	if err := w.filterBlock.finish(); err != nil {
@@ -345,6 +399,14 @@ func (w *Writer) Close() error {
 	if filterBH.length > 0 {
 		key := []byte("filter." + w.filter.Name())
 		n := encodeBlockHandle(w.scratch[:20], filterBH)
+		if err := w.dataBlock.append(key, w.scratch[:n]); err != nil {
+			return err
+		}
+	}
+	// Add Merkle tree block handle to metaindex
+	if merkleBH.length > 0 {
+		key := []byte("merkle.tree")
+		n := encodeBlockHandle(w.scratch[:20], merkleBH)
 		if err := w.dataBlock.append(key, w.scratch[:n]); err != nil {
 			return err
 		}
@@ -407,6 +469,8 @@ func NewWriter(f io.Writer, o *opt.Options, pool *util.BufferPool, size int) *Wr
 		comparerScratch: make([]byte, 0),
 		bpool:           pool,
 		dataBlock:       blockWriter{buf: *util.NewBuffer(bufBytes)},
+		enableMerkle:    true, // Enable Merkle tree by default
+		blockHashes:     make([]mlsm.Hash, 0, 32),
 	}
 	// data block
 	w.dataBlock.restartInterval = o.GetBlockRestartInterval()

@@ -336,6 +336,9 @@ func (db *DB) memCompaction() {
 	// Drop frozen memdb.
 	db.dropFrozenMem()
 
+	// Update MasterRoot after flush
+	db.updateMasterRoot()
+
 	// Resume table compaction.
 	if resumeC != nil {
 		select {
@@ -498,19 +501,28 @@ func (b *tableCompactionBuilder) run(cnt *compactionTransactCounter) (err error)
 
 			switch {
 			case lastSeq <= b.minSeq:
-				// Dropped because newer entry for same user key exist
-				fallthrough // (A)
+				// For mLSM: preserve historical versions
+				// Check if this is a versioned key
+				if len(ikey) >= 16 {
+					// Versioned key (16+ bytes) - preserve all versions
+					// Don't drop, keep for historical state verification
+					lastSeq = seq
+				} else {
+					// Non-versioned key with newer entry exists
+					// Original behavior: drop older versions
+					lastSeq = seq
+					b.dropCnt++
+					continue
+				}
 			case kt == keyTypeDel && seq <= b.minSeq && b.c.baseLevelForKey(lastUkey):
-				// For this user key:
-				// (1) there is no data in higher levels
-				// (2) data in lower levels will have larger seq numbers
-				// (3) data in layers that are being compacted here and have
-				//     smaller seq numbers will be dropped in the next
-				//     few iterations of this loop (by rule (A) above).
-				// Therefore this deletion marker is obsolete and can be dropped.
+				// For mLSM: PRESERVE Tombstones (deletion markers)
+				// Tombstones are needed to prove non-existence in Merkle proofs
+				// Original LevelDB would drop obsolete deletion markers here
+				//
+				// mLSM requirement: Keep tombstone as a record
 				lastSeq = seq
-				b.dropCnt++
-				continue
+				// Don't increment dropCnt - we're keeping it
+				// Don't continue - write the tombstone to output
 			default:
 				lastSeq = seq
 			}
@@ -611,6 +623,9 @@ func (db *DB) tableCompaction(c *compaction, noTrivial bool) {
 	case seekCompaction:
 		atomic.AddUint32(&db.seekComp, 1)
 	}
+
+	// Update MasterRoot after table compaction
+	db.updateMasterRoot()
 }
 
 func (db *DB) tableRangeCompaction(level int, umin, umax []byte) error {
