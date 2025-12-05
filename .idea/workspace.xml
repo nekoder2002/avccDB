@@ -4,12 +4,13 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8f467dcf-1188-4b79-9ee6-d0f69e65fae0" name="更改" comment="更新merkle">
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/goleveldb.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/golinter.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
+    <list default="true" id="8f467dcf-1188-4b79-9ee6-d0f69e65fae0" name="更改" comment="清理和更新 IntelliJ IDEA 配置文件">
+      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_batch_debug_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_integration_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_order_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_proof_verify_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_simple_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_version_debug_test.go" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -40,29 +41,30 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestComparerWithKeyMaxSeq.executor&quot;: &quot;Run&quot;,
-    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb/merkle 中的 TestHashFunctions.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.GoLinterPluginOnboarding&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.GoLinterPluginStorageMigration&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.go.modules.go.list.on.any.changes.was.set&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
-    &quot;go.sdk.automatically.set&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Code/avccDB&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;Qoder&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestComparerWithKeyMaxSeq.executor": "Run",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionStaging.executor": "Run",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb/merkle 中的 TestHashFunctions.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.GoLinterPluginOnboarding": "true",
+    "RunOnceActivity.GoLinterPluginStorageMigration": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.go.formatter.settings.were.checked": "true",
+    "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
+    "git-widget-placeholder": "master",
+    "go.import.settings.migrated": "true",
+    "go.sdk.automatically.set": "true",
+    "last_opened_file_path": "D:/Code/avccDB",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.goide.configuration.GoLibrariesConfigurableProvider"
   }
-}</component>
-  <component name="RunManager" selected="Go 测试.github.com/syndtr/goleveldb/leveldb/merkle 中的 TestHashFunctions">
+}]]></component>
+  <component name="RunManager" selected="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionStaging">
     <configuration default="true" type="GoApplicationRunConfiguration" factoryName="Go Application">
       <module name="avccDB" />
       <working_directory value="$PROJECT_DIR$" />
@@ -92,6 +94,18 @@
       <pattern value="^\QTestComparerWithKeyMaxSeq\E$" />
       <method v="2" />
     </configuration>
+    <configuration name="github.com/syndtr/goleveldb/leveldb 中的 TestVersionStaging" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="avccDB" />
+      <working_directory value="$PROJECT_DIR$/leveldb" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/syndtr/goleveldb/leveldb" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestVersionStaging\E$" />
+      <method v="2" />
+    </configuration>
     <configuration name="github.com/syndtr/goleveldb/leveldb/merkle 中的 TestHashFunctions" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="avccDB" />
       <working_directory value="$PROJECT_DIR$/leveldb/merkle" />
@@ -106,6 +120,7 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionStaging" />
         <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb/merkle 中的 TestHashFunctions" />
         <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestComparerWithKeyMaxSeq" />
       </list>
@@ -146,7 +161,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="baseline" />
     <MESSAGE value="更新merkle" />
-    <option name="LAST_COMMIT_MESSAGE" value="更新merkle" />
+    <MESSAGE value="清理和更新 IntelliJ IDEA 配置文件" />
+    <option name="LAST_COMMIT_MESSAGE" value="清理和更新 IntelliJ IDEA 配置文件" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
