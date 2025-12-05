@@ -13,7 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/syndtr/goleveldb/leveldb/iterator"
-	"github.com/syndtr/goleveldb/leveldb/mlsm"
+	"github.com/syndtr/goleveldb/leveldb/merkle"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -285,7 +285,7 @@ func (v *version) get(aux tFiles, ikey internalKey, ro *opt.ReadOptions, noValue
 }
 
 // getWithProof gets value and Merkle proof from SST files
-func (v *version) getWithProof(aux tFiles, ikey internalKey, ro *opt.ReadOptions) (value []byte, proof *mlsm.MerkleProof, tcomp bool, err error) {
+func (v *version) getWithProof(aux tFiles, ikey internalKey, ro *opt.ReadOptions) (value []byte, proof *merkle.MerkleProof, tcomp bool, err error) {
 	if v.closing {
 		return nil, nil, false, ErrClosed
 	}
@@ -309,7 +309,7 @@ func (v *version) getWithProof(aux tFiles, ikey internalKey, ro *opt.ReadOptions
 		zseq   uint64
 		zkt    keyType
 		zval   []byte
-		zproof *mlsm.MerkleProof
+		zproof *merkle.MerkleProof
 	)
 
 	err = ErrNotFound

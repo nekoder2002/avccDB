@@ -1,7 +1,7 @@
 // Copyright (c) 2024 mLSM Implementation
 // Use of this source code is governed by a BSD-style license
 
-package mlsm
+package merkle
 
 import (
 	"encoding/binary"
@@ -79,7 +79,7 @@ func NewLeafNode(key, value []byte, version uint64) *MerkleNode {
 // NewInternalNode creates a new internal node from two children
 func NewInternalNode(left, right *MerkleNode) *MerkleNode {
 	if left == nil || right == nil {
-		panic("mlsm: cannot create internal node with nil children")
+		panic("merkle: cannot create internal node with nil children")
 	}
 	height := left.Height
 	if right.Height > height {

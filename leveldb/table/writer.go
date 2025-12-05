@@ -16,7 +16,7 @@ import (
 
 	"github.com/syndtr/goleveldb/leveldb/comparer"
 	"github.com/syndtr/goleveldb/leveldb/filter"
-	"github.com/syndtr/goleveldb/leveldb/mlsm"
+	"github.com/syndtr/goleveldb/leveldb/merkle"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -170,9 +170,9 @@ type Writer struct {
 	compressionScratch []byte
 
 	// Merkle tree support
-	blockHashes  []mlsm.Hash      // Hashes of all data blocks
-	merkleTree   *mlsm.MerkleNode // Root of Merkle tree
-	enableMerkle bool             // Enable Merkle tree generation
+	blockHashes  []merkle.Hash      // Hashes of all data blocks
+	merkleTree   *merkle.MerkleNode // Root of Merkle tree
+	enableMerkle bool               // Enable Merkle tree generation
 }
 
 func (w *Writer) writeBlock(buf *util.Buffer, compression opt.Compression) (bh blockHandle, err error) {
@@ -243,7 +243,7 @@ func (w *Writer) finishBlock() error {
 	// Compute block hash before writing if Merkle enabled
 	if w.enableMerkle {
 		blockData := w.dataBlock.buf.Bytes()
-		blockHash := mlsm.HashBlock(blockData)
+		blockHash := merkle.HashBlock(blockData)
 		w.blockHashes = append(w.blockHashes, blockHash)
 	}
 
@@ -347,7 +347,7 @@ func (w *Writer) Close() error {
 	var merkleBH blockHandle
 	if w.enableMerkle && len(w.blockHashes) > 0 {
 		// Build Merkle tree from block hashes
-		builder := mlsm.NewTreeBuilder(nil)
+		builder := merkle.NewTreeBuilder(nil)
 		for i, hash := range w.blockHashes {
 			// Create leaf node for each block hash
 			// Use block index as key
@@ -368,7 +368,7 @@ func (w *Writer) Close() error {
 		w.merkleTree = root
 
 		// Serialize Merkle tree to compact format
-		compactFormat := mlsm.BuildCompactFormat(root)
+		compactFormat := merkle.BuildCompactFormat(root)
 		merkleData, err := compactFormat.Marshal()
 		if err != nil {
 			w.err = err
@@ -470,7 +470,7 @@ func NewWriter(f io.Writer, o *opt.Options, pool *util.BufferPool, size int) *Wr
 		bpool:           pool,
 		dataBlock:       blockWriter{buf: *util.NewBuffer(bufBytes)},
 		enableMerkle:    true, // Enable Merkle tree by default
-		blockHashes:     make([]mlsm.Hash, 0, 32),
+		blockHashes:     make([]merkle.Hash, 0, 32),
 	}
 	// data block
 	w.dataBlock.restartInterval = o.GetBlockRestartInterval()

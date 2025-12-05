@@ -1,7 +1,7 @@
 // Copyright (c) 2024 mLSM Implementation
 // Use of this source code is governed by a BSD-style license
 
-package mlsm
+package merkle
 
 import (
 	"bytes"
@@ -50,11 +50,11 @@ func (tb *TreeBuilder) AddLeaf(key, value []byte, version uint64) error {
 		lastLeaf := tb.leaves[len(tb.leaves)-1]
 		cmp := tb.compare(lastLeaf.Key, key)
 		if cmp > 0 {
-			return errors.New("mlsm: keys must be added in sorted order")
+			return errors.New("merkle: keys must be added in sorted order")
 		} else if cmp == 0 {
 			// Same key - check version ordering (higher version should come first)
 			if version > lastLeaf.Version {
-				return errors.New("mlsm: for same key, higher versions must come first")
+				return errors.New("merkle: for same key, higher versions must come first")
 			}
 			// Allow same key with lower or equal version
 		}
@@ -70,7 +70,7 @@ func (tb *TreeBuilder) AddLeaf(key, value []byte, version uint64) error {
 func (tb *TreeBuilder) AddLeaves(leaves []*MerkleNode) error {
 	for _, leaf := range leaves {
 		if !leaf.IsLeaf() {
-			return errors.New("mlsm: only leaf nodes can be added")
+			return errors.New("merkle: only leaf nodes can be added")
 		}
 		if err := tb.AddLeaf(leaf.Key, leaf.Value, leaf.Version); err != nil {
 			return err
@@ -315,12 +315,12 @@ func (tb *TreeBuilder) GetStats() TreeStats {
 // Both trees must be complete and their keys must be disjoint and ordered
 func MergeTrees(left, right *MerkleNode, leftMaxKey, rightMinKey []byte, compare func(a, b []byte) int) (*MerkleNode, error) {
 	if left == nil || right == nil {
-		return nil, errors.New("mlsm: cannot merge nil trees")
+		return nil, errors.New("merkle: cannot merge nil trees")
 	}
 
 	// Verify ordering constraint
 	if compare(leftMaxKey, rightMinKey) >= 0 {
-		return nil, errors.New("mlsm: trees overlap, cannot merge")
+		return nil, errors.New("merkle: trees overlap, cannot merge")
 	}
 
 	// Create new root combining both trees

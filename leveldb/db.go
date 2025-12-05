@@ -23,7 +23,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/journal"
 	"github.com/syndtr/goleveldb/leveldb/memdb"
-	"github.com/syndtr/goleveldb/leveldb/mlsm"
+	"github.com/syndtr/goleveldb/leveldb/merkle"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/table"
@@ -88,7 +88,7 @@ type DB struct {
 
 	// mLSM MasterRoot: aggregates Merkle Roots from all levels
 	masterRootMu sync.RWMutex
-	masterRoot   mlsm.Hash // Aggregated root hash of all levels
+	masterRoot   merkle.Hash // Aggregated root hash of all levels
 
 	// Close.
 	closeW sync.WaitGroup
@@ -834,7 +834,7 @@ func (db *DB) get(auxm *memdb.DB, auxt tFiles, key []byte, version, seq uint64, 
 
 // getWithProof gets value and Merkle proof for a key at specified version across all layers
 // If version is 0, it searches for the latest version
-func (db *DB) getWithProof(auxm *memdb.DB, auxt tFiles, key []byte, version, seq uint64, ro *opt.ReadOptions) (value []byte, proof *mlsm.MerkleProof, err error) {
+func (db *DB) getWithProof(auxm *memdb.DB, auxt tFiles, key []byte, version, seq uint64, ro *opt.ReadOptions) (value []byte, proof *merkle.MerkleProof, err error) {
 	var ikey internalKey
 	// For latest version query (version=0), use keyMaxSeq which will match any version
 	// For specific version query (version>0), use that version
@@ -852,13 +852,13 @@ func (db *DB) getWithProof(auxm *memdb.DB, auxt tFiles, key []byte, version, seq
 			}
 			// Create a simple proof with MasterRoot
 			masterRoot, _ := db.GetMasterRoot()
-			proof = &mlsm.MerkleProof{
+			proof = &merkle.MerkleProof{
 				Key:     append([]byte(nil), key...),
 				Value:   append([]byte(nil), mv...),
 				Version: version,
 				Root:    masterRoot,
 				Exists:  true,
-				Path:    make([]mlsm.ProofNode, 0), // Empty path for MemDB (not yet fully integrated)
+				Path:    make([]merkle.ProofNode, 0), // Empty path for MemDB (not yet fully integrated)
 			}
 			return append([]byte(nil), mv...), proof, nil
 		}
@@ -879,13 +879,13 @@ func (db *DB) getWithProof(auxm *memdb.DB, auxt tFiles, key []byte, version, seq
 			}
 			// Create a proof with MasterRoot for MemDB data
 			masterRoot, _ := db.GetMasterRoot()
-			proof = &mlsm.MerkleProof{
+			proof = &merkle.MerkleProof{
 				Key:     append([]byte(nil), key...),
 				Value:   append([]byte(nil), mv...),
 				Version: version,
 				Root:    masterRoot,
 				Exists:  true,
-				Path:    make([]mlsm.ProofNode, 0), // Empty path for now
+				Path:    make([]merkle.ProofNode, 0), // Empty path for now
 			}
 			return append([]byte(nil), mv...), proof, nil
 		}
@@ -914,17 +914,17 @@ func (db *DB) getWithProof(auxm *memdb.DB, auxt tFiles, key []byte, version, seq
 		sstProof.Value = append([]byte(nil), value...)
 		sstProof.Version = version
 		// Enhance the proof by incorporating the master root
-		proof = mlsm.CombineWithLayerProof(sstProof, masterRoot, 0)
+		proof = merkle.CombineWithLayerProof(sstProof, masterRoot, 0)
 	} else {
 		// No proof from SST, create a simple one
 		masterRoot, _ := db.GetMasterRoot()
-		proof = &mlsm.MerkleProof{
+		proof = &merkle.MerkleProof{
 			Key:     append([]byte(nil), key...),
 			Value:   append([]byte(nil), value...),
 			Version: version,
 			Root:    masterRoot,
 			Exists:  true,
-			Path:    make([]mlsm.ProofNode, 0),
+			Path:    make([]merkle.ProofNode, 0),
 		}
 	}
 
@@ -1134,7 +1134,7 @@ func (db *DB) GetWithVersion(key []byte, version uint64, ro *opt.ReadOptions) (v
 //
 // The returned slices are their own copies, it is safe to modify them.
 // It is safe to modify the contents of the argument after GetWithProof returns.
-func (db *DB) GetWithProof(key []byte, version uint64, ro *opt.ReadOptions) (value []byte, proof *mlsm.MerkleProof, err error) {
+func (db *DB) GetWithProof(key []byte, version uint64, ro *opt.ReadOptions) (value []byte, proof *merkle.MerkleProof, err error) {
 	err = db.ok()
 	if err != nil {
 		return
@@ -1478,9 +1478,9 @@ func (db *DB) SizeOf(ranges []util.Range) (Sizes, error) {
 
 // GetMasterRoot returns the current MasterRoot hash.
 // The MasterRoot is an aggregation of all Merkle roots from all levels.
-func (db *DB) GetMasterRoot() (mlsm.Hash, error) {
+func (db *DB) GetMasterRoot() (merkle.Hash, error) {
 	if err := db.ok(); err != nil {
-		return mlsm.Hash{}, err
+		return merkle.Hash{}, err
 	}
 
 	db.masterRootMu.RLock()
@@ -1502,12 +1502,12 @@ func (db *DB) GetMasterRoot() (mlsm.Hash, error) {
 //	Level 1: [SST4_root, SST5_root] → Build Merkle Tree → Layer1_root
 //	Level 2: [SST6_root, SST7_root, SST8_root] → Build Merkle Tree → Layer2_root
 //	MasterRoot: [Layer0_root, Layer1_root, Layer2_root] → Build Merkle Tree → MasterRoot
-func (db *DB) computeMasterRoot() mlsm.Hash {
+func (db *DB) computeMasterRoot() merkle.Hash {
 	v := db.s.version()
 	defer v.release()
 
 	// Collect layer roots from each level
-	var layerRoots []mlsm.Hash
+	var layerRoots []merkle.Hash
 
 	// Process each level
 	for level, tables := range v.levels {
@@ -1516,7 +1516,7 @@ func (db *DB) computeMasterRoot() mlsm.Hash {
 		}
 
 		// Collect all SST roots in this level
-		var sstRoots []mlsm.Hash
+		var sstRoots []merkle.Hash
 		for _, t := range tables {
 			// Try to get Merkle root from table
 			if root, err := db.s.tops.getMerkleRoot(t); err == nil {
@@ -1528,7 +1528,7 @@ func (db *DB) computeMasterRoot() mlsm.Hash {
 		if len(sstRoots) > 0 {
 			// Build Merkle tree from SST roots to create this layer's root
 			// This is the KEY change: use BuildTreeFromHashes instead of AggregateRoots
-			layerRoot := mlsm.BuildTreeFromHashes(sstRoots)
+			layerRoot := merkle.BuildTreeFromHashes(sstRoots)
 			layerRoots = append(layerRoots, layerRoot)
 			db.logf("master@root level=%d layer_root=%x num_ssts=%d", level, layerRoot[:8], len(sstRoots))
 		}
@@ -1548,12 +1548,12 @@ func (db *DB) computeMasterRoot() mlsm.Hash {
 
 	// Compute final MasterRoot from all layer roots
 	if len(layerRoots) == 0 {
-		return mlsm.Hash{} // Empty hash
+		return merkle.Hash{} // Empty hash
 	}
 
 	// Build final Merkle tree from all layer roots to create MasterRoot
 	// This is the top-level aggregation
-	masterRoot := mlsm.BuildTreeFromHashes(layerRoots)
+	masterRoot := merkle.BuildTreeFromHashes(layerRoots)
 	db.logf("master@root final master_root=%x num_layers=%d", masterRoot[:8], len(layerRoots))
 
 	return masterRoot

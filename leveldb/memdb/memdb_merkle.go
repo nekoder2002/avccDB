@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/syndtr/goleveldb/leveldb/comparer"
-	"github.com/syndtr/goleveldb/leveldb/mlsm"
+	"github.com/syndtr/goleveldb/leveldb/merkle"
 )
 
 // MerkleDB wraps DB with Merkle tree support
@@ -18,13 +18,13 @@ type MerkleDB struct {
 	mu sync.RWMutex
 
 	// Merkle tree built from current state
-	tree *mlsm.MerkleTree
+	tree *merkle.MerkleTree
 
 	// Flag to indicate if tree needs rebuild
 	dirty bool
 
 	// Cached root hash
-	rootHash mlsm.Hash
+	rootHash merkle.Hash
 
 	// Enable versioning
 	enableVersioning bool
@@ -68,7 +68,7 @@ func (mdb *MerkleDB) BuildMerkleTree() error {
 	iter := mdb.DB.NewIterator(nil)
 	defer iter.Release()
 
-	var pairs []mlsm.KVPair
+	var pairs []merkle.KVPair
 	for iter.Next() {
 		key := append([]byte(nil), iter.Key()...)
 		value := append([]byte(nil), iter.Value()...)
@@ -78,7 +78,7 @@ func (mdb *MerkleDB) BuildMerkleTree() error {
 		// For now, version extraction is simplified
 		// In production, parse from internal key format
 
-		pairs = append(pairs, mlsm.KVPair{
+		pairs = append(pairs, merkle.KVPair{
 			Key:     key,
 			Value:   value,
 			Version: version,
@@ -87,18 +87,18 @@ func (mdb *MerkleDB) BuildMerkleTree() error {
 
 	if len(pairs) == 0 {
 		mdb.tree = nil
-		mdb.rootHash = mlsm.ZeroHash
+		mdb.rootHash = merkle.ZeroHash
 		mdb.dirty = false
 		return nil
 	}
 
 	// Build tree
-	root, err := mlsm.BuildFromSorted(pairs, bytes.Compare)
+	root, err := merkle.BuildFromSorted(pairs, bytes.Compare)
 	if err != nil {
 		return err
 	}
 
-	mdb.tree = mlsm.NewMerkleTree(root, bytes.Compare)
+	mdb.tree = merkle.NewMerkleTree(root, bytes.Compare)
 	mdb.rootHash = mdb.tree.GetRoot()
 	mdb.dirty = false
 
@@ -106,7 +106,7 @@ func (mdb *MerkleDB) BuildMerkleTree() error {
 }
 
 // GetRootHash returns the Merkle root hash
-func (mdb *MerkleDB) GetRootHash() (mlsm.Hash, error) {
+func (mdb *MerkleDB) GetRootHash() (merkle.Hash, error) {
 	mdb.mu.RLock()
 	defer mdb.mu.RUnlock()
 
@@ -115,7 +115,7 @@ func (mdb *MerkleDB) GetRootHash() (mlsm.Hash, error) {
 		mdb.mu.RUnlock()
 		if err := mdb.BuildMerkleTree(); err != nil {
 			mdb.mu.RLock()
-			return mlsm.ZeroHash, err
+			return merkle.ZeroHash, err
 		}
 		mdb.mu.RLock()
 	}
@@ -124,7 +124,7 @@ func (mdb *MerkleDB) GetRootHash() (mlsm.Hash, error) {
 }
 
 // GetWithProof retrieves value and generates Merkle proof
-func (mdb *MerkleDB) GetWithProof(key []byte) (*mlsm.MerkleProof, error) {
+func (mdb *MerkleDB) GetWithProof(key []byte) (*merkle.MerkleProof, error) {
 	mdb.mu.RLock()
 	defer mdb.mu.RUnlock()
 
@@ -139,7 +139,7 @@ func (mdb *MerkleDB) GetWithProof(key []byte) (*mlsm.MerkleProof, error) {
 	}
 
 	if mdb.tree == nil {
-		return nil, mlsm.ErrEmptyTree
+		return nil, merkle.ErrEmptyTree
 	}
 
 	// Generate proof
@@ -147,7 +147,7 @@ func (mdb *MerkleDB) GetWithProof(key []byte) (*mlsm.MerkleProof, error) {
 }
 
 // GetTree returns the underlying Merkle tree (for testing/debugging)
-func (mdb *MerkleDB) GetTree() *mlsm.MerkleTree {
+func (mdb *MerkleDB) GetTree() *merkle.MerkleTree {
 	mdb.mu.RLock()
 	defer mdb.mu.RUnlock()
 	return mdb.tree
@@ -155,8 +155,8 @@ func (mdb *MerkleDB) GetTree() *mlsm.MerkleTree {
 
 // Stats returns Merkle tree statistics
 type MerkleStats struct {
-	TreeStats  mlsm.TreeStats
-	RootHash   mlsm.Hash
+	TreeStats  merkle.TreeStats
+	RootHash   merkle.Hash
 	IsDirty    bool
 	NumEntries int
 }

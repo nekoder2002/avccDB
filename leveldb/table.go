@@ -14,7 +14,7 @@ import (
 
 	"github.com/syndtr/goleveldb/leveldb/cache"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
-	"github.com/syndtr/goleveldb/leveldb/mlsm"
+	"github.com/syndtr/goleveldb/leveldb/merkle"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/table"
@@ -442,7 +442,7 @@ func (t *tOps) find(f *tFile, key []byte, ro *opt.ReadOptions) (rkey, rvalue []b
 }
 
 // findWithProof finds key/value pair and Merkle proof for the given key
-func (t *tOps) findWithProof(f *tFile, key []byte, ro *opt.ReadOptions) (rkey, rvalue []byte, proof *mlsm.MerkleProof, err error) {
+func (t *tOps) findWithProof(f *tFile, key []byte, ro *opt.ReadOptions) (rkey, rvalue []byte, proof *merkle.MerkleProof, err error) {
 	ch, err := t.open(f)
 	if err != nil {
 		return nil, nil, nil, err
@@ -467,10 +467,10 @@ func (t *tOps) findWithProof(f *tFile, key []byte, ro *opt.ReadOptions) (rkey, r
 }
 
 // getMerkleRoot gets the Merkle root hash from a table file
-func (t *tOps) getMerkleRoot(f *tFile) (mlsm.Hash, error) {
+func (t *tOps) getMerkleRoot(f *tFile) (merkle.Hash, error) {
 	ch, err := t.open(f)
 	if err != nil {
-		return mlsm.Hash{}, err
+		return merkle.Hash{}, err
 	}
 	defer ch.Release()
 

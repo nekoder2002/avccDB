@@ -21,7 +21,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
-	"github.com/syndtr/goleveldb/leveldb/mlsm"
+	"github.com/syndtr/goleveldb/leveldb/merkle"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -529,7 +529,7 @@ type Reader struct {
 
 	// Merkle tree support
 	merkleBH      blockHandle
-	merkleTree    *mlsm.MerkleTree
+	merkleTree    *merkle.MerkleTree
 	merkleEnabled bool
 }
 
@@ -1020,7 +1020,7 @@ func (r *Reader) loadMerkleTree() error {
 	defer r.bpool.Put(data)
 
 	// Unmarshal compact format
-	var compactFormat mlsm.CompactTreeFormat
+	var compactFormat merkle.CompactTreeFormat
 	if err := compactFormat.Unmarshal(data); err != nil {
 		return r.newErrCorruptedBH(r.merkleBH, "failed to unmarshal merkle tree: "+err.Error())
 	}
@@ -1028,20 +1028,20 @@ func (r *Reader) loadMerkleTree() error {
 	// For now, we only store the root hash and metadata
 	// Full tree reconstruction is not needed for proof generation in SST
 	// (we'll use a different approach - generate proof from data blocks directly)
-	root := &mlsm.MerkleNode{
+	root := &merkle.MerkleNode{
 		Hash:     compactFormat.RootHash,
-		NodeType: mlsm.NodeTypeInternal,
+		NodeType: merkle.NodeTypeInternal,
 		Height:   compactFormat.Height,
 	}
 
-	r.merkleTree = mlsm.NewMerkleTree(root, r.cmp.Compare)
+	r.merkleTree = merkle.NewMerkleTree(root, r.cmp.Compare)
 	return nil
 }
 
 // GetWithProof gets the value and Merkle proof for the given key
 // It returns the value, proof, and error
 // If the key doesn't exist, returns ErrNotFound
-func (r *Reader) GetWithProof(key []byte, ro *opt.ReadOptions) (value []byte, proof *mlsm.MerkleProof, err error) {
+func (r *Reader) GetWithProof(key []byte, ro *opt.ReadOptions) (value []byte, proof *merkle.MerkleProof, err error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -1083,7 +1083,7 @@ func (r *Reader) GetWithProof(key []byte, ro *opt.ReadOptions) (value []byte, pr
 
 // GetProof gets the Merkle proof for a key that was already found
 // This is a helper method used when the value was obtained by Find()
-func (r *Reader) GetProof(key []byte, ro *opt.ReadOptions) (proof *mlsm.MerkleProof, err error) {
+func (r *Reader) GetProof(key []byte, ro *opt.ReadOptions) (proof *merkle.MerkleProof, err error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -1104,22 +1104,22 @@ func (r *Reader) GetProof(key []byte, ro *opt.ReadOptions) (proof *mlsm.MerklePr
 }
 
 // GetMerkleRoot returns the Merkle root hash of this table
-func (r *Reader) GetMerkleRoot() (mlsm.Hash, error) {
+func (r *Reader) GetMerkleRoot() (merkle.Hash, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	// If Merkle tree is not enabled, return empty hash
 	if !r.merkleEnabled {
-		return mlsm.Hash{}, nil
+		return merkle.Hash{}, nil
 	}
 
 	// Load Merkle tree if not already loaded
 	if err := r.loadMerkleTree(); err != nil {
-		return mlsm.Hash{}, err
+		return merkle.Hash{}, err
 	}
 
 	if r.merkleTree == nil {
-		return mlsm.Hash{}, nil
+		return merkle.Hash{}, nil
 	}
 
 	return r.merkleTree.GetRoot(), nil
@@ -1127,7 +1127,7 @@ func (r *Reader) GetMerkleRoot() (mlsm.Hash, error) {
 
 // generateProofForKey generates a Merkle proof for a specific key
 // This is a simplified version that creates a proof based on the stored tree structure
-func (r *Reader) generateProofForKey(key, value []byte) (*mlsm.MerkleProof, error) {
+func (r *Reader) generateProofForKey(key, value []byte) (*merkle.MerkleProof, error) {
 	if r.merkleTree == nil {
 		return nil, errors.New("merkle tree not loaded")
 	}
@@ -1137,12 +1137,12 @@ func (r *Reader) generateProofForKey(key, value []byte) (*mlsm.MerkleProof, erro
 	// 2. Using the tree structure to build the path to root
 
 	// Create a proof structure
-	proof := &mlsm.MerkleProof{
+	proof := &merkle.MerkleProof{
 		Key:    append([]byte(nil), key...),
 		Value:  append([]byte(nil), value...),
 		Root:   r.merkleTree.GetRoot(),
 		Exists: true,
-		Path:   make([]mlsm.ProofNode, 0),
+		Path:   make([]merkle.ProofNode, 0),
 	}
 
 	// Note: In a production implementation, we would:

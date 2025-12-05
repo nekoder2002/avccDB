@@ -1,7 +1,7 @@
 // Copyright (c) 2024 mLSM Implementation
 // Use of this source code is governed by a BSD-style license
 
-package mlsm
+package merkle
 
 import (
 	"bytes"
