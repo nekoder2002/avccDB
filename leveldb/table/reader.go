@@ -529,7 +529,7 @@ type Reader struct {
 
 	// Merkle tree support
 	merkleBH      blockHandle
-	merkleTree    *merkle.MerkleTree
+	merkleTree    *merkle.CompactTreeFormat
 	merkleEnabled bool
 }
 
@@ -1025,23 +1025,14 @@ func (r *Reader) loadMerkleTree() error {
 		return r.newErrCorruptedBH(r.merkleBH, "failed to unmarshal merkle tree: "+err.Error())
 	}
 
-	// For now, we only store the root hash and metadata
-	// Full tree reconstruction is not needed for proof generation in SST
-	// (we'll use a different approach - generate proof from data blocks directly)
-	root := &merkle.MerkleNode{
-		Hash:     compactFormat.RootHash,
-		NodeType: merkle.NodeTypeInternal,
-		Height:   compactFormat.Height,
-	}
-
-	r.merkleTree = merkle.NewMerkleTree(root, r.cmp.Compare)
+	r.merkleTree = &compactFormat
 	return nil
 }
 
 // GetWithProof gets the value and Merkle proof for the given key
 // It returns the value, proof, and error
 // If the key doesn't exist, returns ErrNotFound
-func (r *Reader) GetWithProof(key []byte, ro *opt.ReadOptions) (value []byte, proof *merkle.MerkleProof, err error) {
+func (r *Reader) GetWithProof(key []byte, ro *opt.ReadOptions) (rkey, value []byte, proof *merkle.MerkleProof, err error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -1051,56 +1042,31 @@ func (r *Reader) GetWithProof(key []byte, ro *opt.ReadOptions) (value []byte, pr
 	}
 
 	// First, find the value using the standard Get path
-	rkey, value, err := r.find(key, false, ro, false)
+	rkey, value, err = r.find(key, true, ro, false)
 	if err != nil {
-		return nil, nil, err
-	}
-	if r.cmp.Compare(rkey, key) != 0 {
-		return nil, nil, ErrNotFound
+		return nil, nil, nil, err
 	}
 
 	// If Merkle tree is not enabled, return only the value
 	if !r.merkleEnabled {
-		return value, nil, nil
+		return rkey, value, nil, nil
 	}
 
 	// Load Merkle tree if not already loaded
 	if err := r.loadMerkleTree(); err != nil {
 		// If we can't load the tree, still return the value but with error
-		return value, nil, err
+		return rkey, value, nil, err
 	}
 
 	// Generate proof from the Merkle tree
 	// For SST files, we need to collect the path from leaf to root
-	proof, err = r.generateProofForKey(key, value)
+	proof, err = r.generateProofForKey(rkey, value)
 	if err != nil {
 		// Return value even if proof generation fails
-		return value, nil, err
+		return rkey, value, nil, err
 	}
 
-	return value, proof, nil
-}
-
-// GetProof gets the Merkle proof for a key that was already found
-// This is a helper method used when the value was obtained by Find()
-func (r *Reader) GetProof(key []byte, ro *opt.ReadOptions) (proof *merkle.MerkleProof, err error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	// If Merkle tree is not enabled, return nil
-	if !r.merkleEnabled {
-		return nil, nil
-	}
-
-	// Load Merkle tree if not already loaded
-	if err := r.loadMerkleTree(); err != nil {
-		return nil, err
-	}
-
-	// Generate proof from the Merkle tree
-	// Note: we don't have the value here, so pass nil
-	proof, err = r.generateProofForKey(key, nil)
-	return proof, err
+	return rkey, value, proof, nil
 }
 
 // GetMerkleRoot returns the Merkle root hash of this table
@@ -1137,21 +1103,7 @@ func (r *Reader) generateProofForKey(key, value []byte) (*merkle.MerkleProof, er
 	// 2. Using the tree structure to build the path to root
 
 	// Create a proof structure
-	proof := &merkle.MerkleProof{
-		Key:    append([]byte(nil), key...),
-		Value:  append([]byte(nil), value...),
-		Root:   r.merkleTree.GetRoot(),
-		Exists: true,
-		Path:   make([]merkle.ProofNode, 0),
-	}
-
-	// Note: In a production implementation, we would:
-	// 1. Scan through data blocks to find the position of this key
-	// 2. Use the block index to determine which leaf this corresponds to
-	// 3. Reconstruct the path from the compact tree format
-	//
-	// For now, we return a basic proof with just the root hash
-	// This will be fully implemented in the optimization phase
+	proof, _ := r.merkleTree.GenerateProofByHash(merkle.HashLeaf(key, value))
 
 	return proof, nil
 }

@@ -449,20 +449,13 @@ func (t *tOps) findWithProof(f *tFile, key []byte, ro *opt.ReadOptions) (rkey, r
 	}
 	defer ch.Release()
 
-	// First find the key
-	rkey, rvalue, err = ch.Value().(*table.Reader).Find(key, true, ro)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
 	// Then get the proof
-	proof, err = ch.Value().(*table.Reader).GetProof(rkey, ro)
+	rkey, rvalue, proof, err = ch.Value().(*table.Reader).GetWithProof(key, ro)
 	if err != nil {
 		// If proof generation fails, still return the value
 		// (proof might not be available for all SSTs)
 		return rkey, rvalue, nil, nil
 	}
-
 	return rkey, rvalue, proof, nil
 }
 

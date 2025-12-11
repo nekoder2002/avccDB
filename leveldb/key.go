@@ -131,18 +131,9 @@ func parseInternalKeyWithVersion(ik []byte) (ukey []byte, version, seq uint64, k
 	return
 }
 
-// hasVersion checks if internal key contains version
-func hasVersion(ik []byte) bool {
-	return len(ik) >= 16
-}
-
 // extractVersion extracts version from internal key if present
-func extractVersion(ik []byte) (uint64, bool) {
-	if !hasVersion(ik) {
-		return 0, false
-	}
-	version := binary.LittleEndian.Uint64(ik[len(ik)-16 : len(ik)-8])
-	return version, true
+func extractVersion(ik []byte) uint64 {
+	return binary.LittleEndian.Uint64(ik[len(ik)-16 : len(ik)-8])
 }
 
 func validInternalKey(ik []byte) bool {
@@ -161,12 +152,6 @@ func (ik internalKey) assert() {
 
 func (ik internalKey) ukey() []byte {
 	ik.assert()
-	// Check if this is a versioned key
-	if hasVersion(ik) {
-		// For versioned keys, ukey excludes version(8) + seq+type(8) = 16 bytes
-		return ik[:len(ik)-16]
-	}
-	// For non-versioned keys, ukey excludes seq+type(8) = 8 bytes
 	return ik[:len(ik)-8]
 }
 

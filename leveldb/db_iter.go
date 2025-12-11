@@ -203,16 +203,13 @@ func (i *dbIter) Seek(key []byte) bool {
 
 func (i *dbIter) next() bool {
 	for {
-		// Try parsing as versioned key first, then non-versioned
+		// Parse as versioned key (all keys must be versioned)
 		var ukey []byte
 		var seq uint64
 		var kt keyType
 		var kerr error
 		iterKey := i.iter.Key()
-		if ukey, _, seq, kt, kerr = parseInternalKeyWithVersion(iterKey); kerr != nil {
-			// Fall back to non-versioned parsing
-			ukey, seq, kt, kerr = parseInternalKey(iterKey)
-		}
+		ukey, _, seq, kt, kerr = parseInternalKeyWithVersion(iterKey)
 		if kerr == nil {
 			i.sampleSeek()
 			if seq <= i.seq {
@@ -264,16 +261,13 @@ func (i *dbIter) prev() bool {
 	del := true
 	if i.iter.Valid() {
 		for {
-			// Try parsing as versioned key first, then non-versioned
+			// Parse as versioned key (all keys must be versioned)
 			var ukey []byte
 			var seq uint64
 			var kt keyType
 			var kerr error
 			iterKey := i.iter.Key()
-			if ukey, _, seq, kt, kerr = parseInternalKeyWithVersion(iterKey); kerr != nil {
-				// Fall back to non-versioned parsing
-				ukey, seq, kt, kerr = parseInternalKey(iterKey)
-			}
+			ukey, _, seq, kt, kerr = parseInternalKeyWithVersion(iterKey)
 			if kerr == nil {
 				i.sampleSeek()
 				if seq <= i.seq {
@@ -316,14 +310,11 @@ func (i *dbIter) Prev() bool {
 		return i.Last()
 	case dirForward:
 		for i.iter.Prev() {
-			// Try parsing as versioned key first, then non-versioned
+			// Parse as versioned key (all keys must be versioned)
 			var ukey []byte
 			var kerr error
 			iterKey := i.iter.Key()
-			if ukey, _, _, _, kerr = parseInternalKeyWithVersion(iterKey); kerr != nil {
-				// Fall back to non-versioned parsing
-				ukey, _, _, kerr = parseInternalKey(iterKey)
-			}
+			ukey, _, _, _, kerr = parseInternalKeyWithVersion(iterKey)
 			if kerr == nil {
 				i.sampleSeek()
 				if i.icmp.uCompare(ukey, i.key) < 0 {

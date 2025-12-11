@@ -146,12 +146,10 @@ func (v *version) get(aux tFiles, ikey internalKey, ro *opt.ReadOptions, noValue
 
 	ukey := ikey.ukey()
 	sampleSeeks := !v.s.o.GetDisableSeeksCompaction()
-	// Extract target version from query key
-	// If query key is non-versioned (len<16), hasTargetVersion will be false
-	// If version is keyMaxSeq, it's a wildcard (match any version)
-	targetVersion, hasTargetVersion := extractVersion(ikey)
+	queryLastest := false
+	targetVersion := extractVersion(ikey)
 	if targetVersion == keyMaxSeq {
-		hasTargetVersion = false // keyMaxSeq is a wildcard
+		queryLastest = true
 	}
 
 	var (
@@ -197,67 +195,43 @@ func (v *version) get(aux tFiles, ikey internalKey, ro *opt.ReadOptions, noValue
 			return false
 		}
 
-		// Try to parse as versioned key first
-		if fukey, fversion, fseq, fkt, fkerr := parseInternalKeyWithVersion(fikey); fkerr == nil {
-			if v.s.icmp.uCompare(ukey, fukey) == 0 {
-				// Check version match if version is specified
-				if hasTargetVersion && fversion != targetVersion {
-					// Version mismatch, continue searching
-					return true
-				}
-				// If no version specified (hasTargetVersion=false), accept any version
-
-				// Level <= 0 may overlaps each-other.
-				// When querying latest version (hasTargetVersion=false), we need to compare seq
-				// even for level > 0, because the same user key might have multiple versions
-				if level <= 0 || !hasTargetVersion {
-					if fseq >= zseq {
-						zfound = true
-						zseq = fseq
-						zkt = fkt
-						zval = fval
-					}
-				} else {
-					// Specific version requested and found
-					switch fkt {
-					case keyTypeVal:
-						value = fval
-						err = nil
-					case keyTypeDel:
-					default:
-						panic("leveldb: invalid internalKey type")
-					}
-					return false
-				}
-			}
-		} else if fukey, fseq, fkt, fkerr := parseInternalKey(fikey); fkerr == nil {
-			// Non-versioned key
-			if v.s.icmp.uCompare(ukey, fukey) == 0 {
-				// Non-versioned keys are always acceptable when no specific version requested
-
-				// Level <= 0 may overlaps each-other.
-				if level <= 0 {
-					if fseq >= zseq {
-						zfound = true
-						zseq = fseq
-						zkt = fkt
-						zval = fval
-					}
-				} else {
-					switch fkt {
-					case keyTypeVal:
-						value = fval
-						err = nil
-					case keyTypeDel:
-					default:
-						panic("leveldb: invalid internalKey type")
-					}
-					return false
-				}
-			}
-		} else {
+		// Parse as versioned key (all keys must be versioned)
+		fukey, fversion, fseq, fkt, fkerr := parseInternalKeyWithVersion(fikey)
+		if fkerr != nil {
 			err = fkerr
 			return false
+		}
+
+		if v.s.icmp.uCompare(ukey, fukey) == 0 {
+			// Check version match if version is specified
+			if !queryLastest && fversion != targetVersion {
+				// Version mismatch, continue searching
+				return true
+			}
+			// If no version specified (hasTargetVersion=false), accept any version
+
+			// Level <= 0 may overlaps each-other.
+			// When querying latest version (hasTargetVersion=false), we need to compare seq
+			// even for level > 0, because the same user key might have multiple versions
+			if level <= 0 || queryLastest {
+				if fseq >= zseq {
+					zfound = true
+					zseq = fseq
+					zkt = fkt
+					zval = fval
+				}
+			} else {
+				// Specific version requested and found
+				switch fkt {
+				case keyTypeVal:
+					value = fval
+					err = nil
+				case keyTypeDel:
+				default:
+					panic("leveldb: invalid internalKey type")
+				}
+				return false
+			}
 		}
 
 		return true
@@ -292,12 +266,10 @@ func (v *version) getWithProof(aux tFiles, ikey internalKey, ro *opt.ReadOptions
 
 	ukey := ikey.ukey()
 	sampleSeeks := !v.s.o.GetDisableSeeksCompaction()
-	// Extract target version from query key
-	// If query key is non-versioned (len<16), hasTargetVersion will be false
-	// If version is keyMaxSeq, it's a wildcard (match any version)
-	targetVersion, hasTargetVersion := extractVersion(ikey)
+	queryLastest := false
+	targetVersion := extractVersion(ikey)
 	if targetVersion == keyMaxSeq {
-		hasTargetVersion = false // keyMaxSeq is a wildcard
+		queryLastest = true
 	}
 
 	var (
@@ -336,71 +308,45 @@ func (v *version) getWithProof(aux tFiles, ikey internalKey, ro *opt.ReadOptions
 			return false
 		}
 
-		// Try to parse as versioned key first
-		if fukey, fversion, fseq, fkt, fkerr := parseInternalKeyWithVersion(fikey); fkerr == nil {
-			if v.s.icmp.uCompare(ukey, fukey) == 0 {
-				// Check version match if version is specified
-				if hasTargetVersion && fversion != targetVersion {
-					// Version mismatch, continue searching
-					return true
-				}
-				// If no version specified, accept any version
-
-				// Level <= 0 may overlaps each-other.
-				// When querying latest version (hasTargetVersion=false), we need to compare seq
-				// even for level > 0, because the same user key might have multiple versions
-				if level <= 0 || !hasTargetVersion {
-					if fseq >= zseq {
-						zfound = true
-						zseq = fseq
-						zkt = fkt
-						zval = fval
-						zproof = fproof
-					}
-				} else {
-					// Specific version requested and found
-					switch fkt {
-					case keyTypeVal:
-						value = fval
-						proof = fproof
-						err = nil
-					case keyTypeDel:
-					default:
-						panic("leveldb: invalid internalKey type")
-					}
-					return false
-				}
-			}
-		} else if fukey, fseq, fkt, fkerr := parseInternalKey(fikey); fkerr == nil {
-			// Non-versioned key
-			if v.s.icmp.uCompare(ukey, fukey) == 0 {
-				// Non-versioned keys are always acceptable
-
-				// Level <= 0 may overlaps each-other.
-				if level <= 0 {
-					if fseq >= zseq {
-						zfound = true
-						zseq = fseq
-						zkt = fkt
-						zval = fval
-						zproof = fproof
-					}
-				} else {
-					switch fkt {
-					case keyTypeVal:
-						value = fval
-						proof = fproof
-						err = nil
-					case keyTypeDel:
-					default:
-						panic("leveldb: invalid internalKey type")
-					}
-					return false
-				}
-			}
-		} else {
+		// Parse as versioned key (all keys must be versioned)
+		fukey, fversion, fseq, fkt, fkerr := parseInternalKeyWithVersion(fikey)
+		if fkerr != nil {
 			err = fkerr
 			return false
+		}
+
+		if v.s.icmp.uCompare(ukey, fukey) == 0 {
+			// Check version match if version is specified
+			if !queryLastest && fversion != targetVersion {
+				// Version mismatch, continue searching
+				return true
+			}
+			// If no version specified, accept any version
+
+			// Level <= 0 may overlaps each-other.
+			// When querying latest version (hasTargetVersion=false), we need to compare seq
+			// even for level > 0, because the same user key might have multiple versions
+			if level <= 0 || queryLastest {
+				if fseq >= zseq {
+					zfound = true
+					zseq = fseq
+					zkt = fkt
+					zval = fval
+					zproof = fproof
+				}
+			} else {
+				// Specific version requested and found
+				switch fkt {
+				case keyTypeVal:
+					value = fval
+					proof = fproof
+					err = nil
+				case keyTypeDel:
+				default:
+					panic("leveldb: invalid internalKey type")
+				}
+				return false
+			}
 		}
 
 		return true
@@ -471,40 +417,33 @@ func (v *version) getVersionHistory(aux tFiles, key []byte, minVersion, maxVersi
 		for ; iter.Valid(); iter.Next() {
 			fikey := iter.Key()
 
-			// Try to parse as versioned key first
-			if fukey, fversion, _, fkt, fkerr := parseInternalKeyWithVersion(fikey); fkerr == nil {
-				if v.s.icmp.uCompare(ukey, fukey) != 0 {
-					break // Moved past this key
-				}
-
-				// Check version range
-				if minVersion > 0 && fversion < minVersion {
-					continue
-				}
-				if maxVersion > 0 && fversion > maxVersion {
-					continue
-				}
-
-				// Skip deleted entries
-				if fkt == keyTypeDel {
-					continue
-				}
-
-				// Add to version map (only if not already exists from a higher level)
-				if _, exists := versionMap[fversion]; !exists {
-					versionMap[fversion] = append([]byte(nil), iter.Value()...)
-					err = nil // Found at least one version
-				}
-			} else if fukey, _, fkt, fkerr := parseInternalKey(fikey); fkerr == nil {
-				// Non-versioned key
-				if v.s.icmp.uCompare(ukey, fukey) != 0 {
-					break
-				}
-				// Skip non-versioned keys in version history query
-				_ = fkt
-				continue
-			} else {
+			// Parse as versioned key (all keys must be versioned)
+			fukey, fversion, _, fkt, fkerr := parseInternalKeyWithVersion(fikey)
+			if fkerr != nil {
 				break
+			}
+
+			if v.s.icmp.uCompare(ukey, fukey) != 0 {
+				break // Moved past this key
+			}
+
+			// Check version range
+			if minVersion > 0 && fversion < minVersion {
+				continue
+			}
+			if maxVersion > 0 && fversion > maxVersion {
+				continue
+			}
+
+			// Skip deleted entries
+			if fkt == keyTypeDel {
+				continue
+			}
+
+			// Add to version map (only if not already exists from a higher level)
+			if _, exists := versionMap[fversion]; !exists {
+				versionMap[fversion] = append([]byte(nil), iter.Value()...)
+				err = nil // Found at least one version
 			}
 		}
 

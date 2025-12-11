@@ -4,272 +4,26 @@
 package merkle
 
 import (
-	"bufio"
 	"encoding/binary"
-	"io"
 )
 
-const (
-	// Magic number for Merkle tree files
-	treeMagic = 0x4D4B4C54 // "MKLT"
-
-	// Version of the serialization format
-	treeFormatVersion = 1
-)
-
-// TreeSerializer handles serialization of Merkle trees
-type TreeSerializer struct {
-	writer *bufio.Writer
-	offset int64
-	nodes  map[*MerkleNode]int64 // Map nodes to their offsets
-}
-
-// NewTreeSerializer creates a new serializer
-func NewTreeSerializer(w io.Writer) *TreeSerializer {
-	return &TreeSerializer{
-		writer: bufio.NewWriter(w),
-		nodes:  make(map[*MerkleNode]int64),
-	}
-}
-
-// Serialize writes the entire tree to the writer
-// Returns the offset of the root node
-func (ts *TreeSerializer) Serialize(root *MerkleNode) (int64, error) {
-	if root == nil {
-		return -1, ErrEmptyTree
-	}
-
-	// Write header
-	if err := ts.writeHeader(); err != nil {
-		return -1, err
-	}
-
-	// Serialize tree recursively (post-order: children before parent)
-	rootOffset, err := ts.serializeNode(root)
-	if err != nil {
-		return -1, err
-	}
-
-	// Flush writer
-	if err := ts.writer.Flush(); err != nil {
-		return -1, err
-	}
-
-	return rootOffset, nil
-}
-
-// writeHeader writes the file header
-func (ts *TreeSerializer) writeHeader() error {
-	// Magic number
-	if err := binary.Write(ts.writer, binary.BigEndian, uint32(treeMagic)); err != nil {
-		return err
-	}
-	ts.offset += 4
-
-	// Version
-	if err := binary.Write(ts.writer, binary.BigEndian, uint32(treeFormatVersion)); err != nil {
-		return err
-	}
-	ts.offset += 4
-
-	return nil
-}
-
-// serializeNode serializes a single node and its children
-func (ts *TreeSerializer) serializeNode(node *MerkleNode) (int64, error) {
-	if node == nil {
-		return -1, nil
-	}
-
-	// Check if already serialized
-	if offset, ok := ts.nodes[node]; ok {
-		return offset, nil
-	}
-
-	// For internal nodes, serialize children first
-	if node.IsInternal() {
-		leftOffset, err := ts.serializeNode(node.Left)
-		if err != nil {
-			return -1, err
-		}
-		node.LeftOffset = leftOffset
-
-		rightOffset, err := ts.serializeNode(node.Right)
-		if err != nil {
-			return -1, err
-		}
-		node.RightOffset = rightOffset
-	}
-
-	// Serialize this node
-	nodeOffset := ts.offset
-	data, err := node.MarshalBinary()
-	if err != nil {
-		return -1, err
-	}
-
-	if _, err := ts.writer.Write(data); err != nil {
-		return -1, err
-	}
-
-	ts.offset += int64(len(data))
-	ts.nodes[node] = nodeOffset
-
-	return nodeOffset, nil
-}
-
-// TreeDeserializer handles deserialization of Merkle trees
-type TreeDeserializer struct {
-	reader     io.ReaderAt
-	cache      map[int64]*MerkleNode // Cache for loaded nodes
-	rootOffset int64
-}
-
-// NewTreeDeserializer creates a new deserializer
-func NewTreeDeserializer(r io.ReaderAt, rootOffset int64) *TreeDeserializer {
-	return &TreeDeserializer{
-		reader:     r,
-		cache:      make(map[int64]*MerkleNode),
-		rootOffset: rootOffset,
-	}
-}
-
-// LoadRoot loads and returns the root node
-func (td *TreeDeserializer) LoadRoot() (*MerkleNode, error) {
-	return td.loadNode(td.rootOffset)
-}
-
-// loadNode loads a node from the given offset
-func (td *TreeDeserializer) loadNode(offset int64) (*MerkleNode, error) {
-	if offset < 0 {
-		return nil, nil
-	}
-
-	// Check cache
-	if node, ok := td.cache[offset]; ok {
-		return node, nil
-	}
-
-	// Read node header to determine size
-	headerBuf := make([]byte, nodeHeaderSize)
-	if _, err := td.reader.ReadAt(headerBuf, offset); err != nil {
-		return nil, err
-	}
-
-	node := &MerkleNode{}
-	node.NodeType = NodeType(headerBuf[0])
-
-	// Determine full node size
-	var nodeSize int
-	if node.IsLeaf() {
-		// Need to read more to get key/value lengths
-		extraBuf := make([]byte, leafNodeExtraSize)
-		if _, err := td.reader.ReadAt(extraBuf, offset+nodeHeaderSize); err != nil {
-			return nil, err
-		}
-
-		keyLen := binary.BigEndian.Uint32(extraBuf[8:12])
-		valueLen := binary.BigEndian.Uint32(extraBuf[12:16])
-		nodeSize = nodeHeaderSize + leafNodeExtraSize + int(keyLen) + int(valueLen)
-	} else {
-		nodeSize = nodeHeaderSize + internalNodeExtraSize
-	}
-
-	// Read full node
-	nodeBuf := make([]byte, nodeSize)
-	if _, err := td.reader.ReadAt(nodeBuf, offset); err != nil {
-		return nil, err
-	}
-
-	// Unmarshal
-	if err := node.UnmarshalBinary(nodeBuf); err != nil {
-		return nil, err
-	}
-
-	// Cache it
-	td.cache[offset] = node
-
-	return node, nil
-}
-
-// LoadNodeWithChildren loads a node and its immediate children
-func (td *TreeDeserializer) LoadNodeWithChildren(offset int64) (*MerkleNode, error) {
-	node, err := td.loadNode(offset)
-	if err != nil || node == nil {
-		return node, err
-	}
-
-	if node.IsInternal() {
-		// Load children
-		node.Left, err = td.loadNode(node.LeftOffset)
-		if err != nil {
-			return nil, err
-		}
-
-		node.Right, err = td.loadNode(node.RightOffset)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return node, nil
-}
-
-// LoadFullTree loads the entire tree into memory
-func (td *TreeDeserializer) LoadFullTree() (*MerkleNode, error) {
-	root, err := td.loadNode(td.rootOffset)
-	if err != nil {
-		return nil, err
-	}
-
-	if root == nil {
-		return nil, ErrEmptyTree
-	}
-
-	// Recursively load all children
-	return td.loadSubtree(root)
-}
-
-// loadSubtree recursively loads all descendants
-func (td *TreeDeserializer) loadSubtree(node *MerkleNode) (*MerkleNode, error) {
-	if node == nil || node.IsLeaf() {
-		return node, nil
-	}
-
-	var err error
-	node.Left, err = td.loadNode(node.LeftOffset)
-	if err != nil {
-		return nil, err
-	}
-	node.Left, err = td.loadSubtree(node.Left)
-	if err != nil {
-		return nil, err
-	}
-
-	node.Right, err = td.loadNode(node.RightOffset)
-	if err != nil {
-		return nil, err
-	}
-	node.Right, err = td.loadSubtree(node.Right)
-	if err != nil {
-		return nil, err
-	}
-
-	return node, nil
-}
-
-// CompactTreeFormat provides a more efficient format for storing tree metadata
-// Instead of storing full tree, store only internal node structure
+// CompactTreeFormat provides an efficient format for storing tree metadata
+// For sorted data, we store leaf hashes and can rebuild the tree structure
 type CompactTreeFormat struct {
 	RootHash  Hash
 	Height    int32
 	NumLeaves int32
 
-	// Compact representation: array of hashes in level-order
+	// Leaf hashes in order (essential for rebuilding tree)
+	LeafHashes []Hash
+
+	// Optional: Store internal node hashes for verification
+	// This is much smaller than storing the full tree structure
 	InternalHashes []Hash
 }
 
 // BuildCompactFormat creates a compact representation
+// Collects leaves in-order (left-to-right) to match sorted order
 func BuildCompactFormat(root *MerkleNode) *CompactTreeFormat {
 	if root == nil {
 		return nil
@@ -278,20 +32,32 @@ func BuildCompactFormat(root *MerkleNode) *CompactTreeFormat {
 	format := &CompactTreeFormat{
 		RootHash:       root.Hash,
 		Height:         root.Height,
+		LeafHashes:     make([]Hash, 0),
 		InternalHashes: make([]Hash, 0),
 	}
 
-	// Traverse tree level-by-level and collect internal node hashes
-	queue := []*MerkleNode{root}
-	leafCount := 0
+	// Collect leaves in-order (sorted)
+	var collectLeaves func(node *MerkleNode)
+	collectLeaves = func(node *MerkleNode) {
+		if node == nil {
+			return
+		}
+		if node.IsLeaf() {
+			format.LeafHashes = append(format.LeafHashes, node.Hash)
+			return
+		}
+		// In-order traversal for sorted leaves
+		collectLeaves(node.Left)
+		collectLeaves(node.Right)
+	}
 
+	// Collect internal hashes level-by-level
+	queue := []*MerkleNode{root}
 	for len(queue) > 0 {
 		node := queue[0]
 		queue = queue[1:]
 
-		if node.IsLeaf() {
-			leafCount++
-		} else {
+		if node.IsInternal() {
 			format.InternalHashes = append(format.InternalHashes, node.Hash)
 			if node.Left != nil {
 				queue = append(queue, node.Left)
@@ -302,13 +68,17 @@ func BuildCompactFormat(root *MerkleNode) *CompactTreeFormat {
 		}
 	}
 
-	format.NumLeaves = int32(leafCount)
+	// Collect leaf hashes
+	collectLeaves(root)
+	format.NumLeaves = int32(len(format.LeafHashes))
+
 	return format
 }
 
 // Marshal serializes the compact format
 func (ctf *CompactTreeFormat) Marshal() ([]byte, error) {
-	size := HashSize + 4 + 4 + 4 + len(ctf.InternalHashes)*HashSize
+	// Calculate size: rootHash + height + numLeaves + numLeafHashes + leafHashes + numInternalHashes + internalHashes
+	size := HashSize + 4 + 4 + 4 + len(ctf.LeafHashes)*HashSize + 4 + len(ctf.InternalHashes)*HashSize
 	buf := make([]byte, size)
 	offset := 0
 
@@ -323,6 +93,16 @@ func (ctf *CompactTreeFormat) Marshal() ([]byte, error) {
 	// Num leaves
 	binary.BigEndian.PutUint32(buf[offset:], uint32(ctf.NumLeaves))
 	offset += 4
+
+	// Num leaf hashes
+	binary.BigEndian.PutUint32(buf[offset:], uint32(len(ctf.LeafHashes)))
+	offset += 4
+
+	// Leaf hashes
+	for _, h := range ctf.LeafHashes {
+		copy(buf[offset:], h[:])
+		offset += HashSize
+	}
 
 	// Num internal hashes
 	binary.BigEndian.PutUint32(buf[offset:], uint32(len(ctf.InternalHashes)))
@@ -357,7 +137,25 @@ func (ctf *CompactTreeFormat) Unmarshal(data []byte) error {
 	ctf.NumLeaves = int32(binary.BigEndian.Uint32(data[offset:]))
 	offset += 4
 
+	// Num leaf hashes
+	numLeafHashes := int(binary.BigEndian.Uint32(data[offset:]))
+	offset += 4
+
+	if len(data) < offset+numLeafHashes*HashSize {
+		return ErrCorruptedData
+	}
+
+	// Leaf hashes
+	ctf.LeafHashes = make([]Hash, numLeafHashes)
+	for i := 0; i < numLeafHashes; i++ {
+		copy(ctf.LeafHashes[i][:], data[offset:offset+HashSize])
+		offset += HashSize
+	}
+
 	// Num internal hashes
+	if len(data) < offset+4 {
+		return ErrCorruptedData
+	}
 	numHashes := int(binary.BigEndian.Uint32(data[offset:]))
 	offset += 4
 
@@ -373,4 +171,102 @@ func (ctf *CompactTreeFormat) Unmarshal(data []byte) error {
 	}
 
 	return nil
+}
+
+// GenerateProof generates a Merkle proof directly from CompactTreeFormat
+func (ctf *CompactTreeFormat) GenerateProof(leafIndex int) (*MerkleProof, error) {
+	if leafIndex < 0 || leafIndex >= len(ctf.LeafHashes) {
+		return nil, ErrKeyNotFound
+	}
+
+	proof := &MerkleProof{
+		Root:   ctf.RootHash,
+		Exists: true,
+		Path:   make([]ProofNode, 0),
+	}
+
+	// Build levels on-the-fly and generate proof
+	currentLevel := ctf.LeafHashes
+	currentIdx := leafIndex
+	level := int32(0)
+
+	for len(currentLevel) > 1 {
+		// Find sibling
+		isLeft := (currentIdx % 2) == 0
+		var siblingIdx int
+		if isLeft {
+			siblingIdx = currentIdx + 1
+		} else {
+			siblingIdx = currentIdx - 1
+		}
+
+		// Add sibling to proof if it exists
+		if siblingIdx >= 0 && siblingIdx < len(currentLevel) {
+			proof.Path = append(proof.Path, ProofNode{
+				Hash:   currentLevel[siblingIdx],
+				IsLeft: !isLeft,
+				Height: level,
+			})
+		}
+
+		// Build next level
+		nextLevel := make([]Hash, 0, (len(currentLevel)+1)/2)
+		for i := 0; i < len(currentLevel); i += 2 {
+			if i+1 < len(currentLevel) {
+				parent := HashInternal(currentLevel[i], currentLevel[i+1])
+				nextLevel = append(nextLevel, parent)
+			} else {
+				nextLevel = append(nextLevel, currentLevel[i])
+			}
+		}
+
+		currentLevel = nextLevel
+		currentIdx = currentIdx / 2
+		level++
+	}
+
+	return proof, nil
+}
+
+// GenerateProofByHash generates a Merkle proof for a leaf by its hash
+// This method finds the leaf hash in LeafHashes and generates the proof
+func (ctf *CompactTreeFormat) GenerateProofByHash(leafHash Hash) (*MerkleProof, error) {
+	// Find the index of the leaf hash
+	leafIndex := -1
+	for i, h := range ctf.LeafHashes {
+		if h.Equal(leafHash) {
+			leafIndex = i
+			break
+		}
+	}
+
+	if leafIndex == -1 {
+		return nil, ErrKeyNotFound
+	}
+
+	// Use the existing GenerateProof method with the found index
+	return ctf.GenerateProof(leafIndex)
+}
+
+// GetRoot returns the root hash
+func (ctf *CompactTreeFormat) GetRoot() Hash {
+	return ctf.RootHash
+}
+
+// VerifyProof verifies a Merkle proof
+func (ctf *CompactTreeFormat) VerifyProof(proof *MerkleProof, leafHash Hash) bool {
+	if proof == nil {
+		return false
+	}
+
+	currentHash := leafHash
+	for _, sibling := range proof.Path {
+		if sibling.IsLeft {
+			currentHash = HashInternal(sibling.Hash, currentHash)
+		} else {
+			currentHash = HashInternal(currentHash, sibling.Hash)
+		}
+	}
+
+	return currentHash.Equal(ctf.RootHash)
 }

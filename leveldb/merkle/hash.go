@@ -123,30 +123,3 @@ func (h *Hash) UnmarshalBinary(data []byte) error {
 	copy(h[:], data)
 	return nil
 }
-
-// AggregateRoots computes an aggregated hash from multiple Merkle roots.
-// This is used to create a MasterRoot that represents the entire database state.
-// Format: Hash(0x03 || root1 || root2 || ... || rootN)
-func AggregateRoots(roots []Hash) Hash {
-	if len(roots) == 0 {
-		return ZeroHash
-	}
-
-	if len(roots) == 1 {
-		return roots[0]
-	}
-
-	// Use a deterministic aggregation scheme
-	// Marker 0x03 for aggregated roots
-	h := sha256.New()
-	h.Write([]byte{0x03})
-
-	// Write all roots in order
-	for _, root := range roots {
-		h.Write(root[:])
-	}
-
-	var result Hash
-	copy(result[:], h.Sum(nil))
-	return result
-}

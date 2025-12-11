@@ -470,7 +470,7 @@ func (b *tableCompactionBuilder) run(cnt *compactionTransactCounter) (err error)
 		}
 
 		ikey := iter.Key()
-		ukey, seq, kt, kerr := parseInternalKey(ikey)
+		ukey, _, seq, kt, kerr := parseInternalKeyWithVersion(ikey)
 
 		if kerr == nil {
 			shouldStop := !resumed && b.c.shouldStopBefore(ikey)
@@ -502,18 +502,9 @@ func (b *tableCompactionBuilder) run(cnt *compactionTransactCounter) (err error)
 			switch {
 			case lastSeq <= b.minSeq:
 				// For mLSM: preserve historical versions
-				// Check if this is a versioned key
-				if len(ikey) >= 16 {
-					// Versioned key (16+ bytes) - preserve all versions
-					// Don't drop, keep for historical state verification
-					lastSeq = seq
-				} else {
-					// Non-versioned key with newer entry exists
-					// Original behavior: drop older versions
-					lastSeq = seq
-					b.dropCnt++
-					continue
-				}
+				// All keys are versioned - preserve all versions
+				// Don't drop, keep for historical state verification
+				lastSeq = seq
 			case kt == keyTypeDel && seq <= b.minSeq && b.c.baseLevelForKey(lastUkey):
 				// For mLSM: PRESERVE Tombstones (deletion markers)
 				// Tombstones are needed to prove non-existence in Merkle proofs

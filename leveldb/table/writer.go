@@ -170,9 +170,9 @@ type Writer struct {
 	compressionScratch []byte
 
 	// Merkle tree support
-	blockHashes  []merkle.Hash      // Hashes of all data blocks
-	merkleTree   *merkle.MerkleNode // Root of Merkle tree
-	enableMerkle bool               // Enable Merkle tree generation
+	merkleBuilder *merkle.TreeBuilder // Merkle tree builder for key-value pairs
+	merkleTree    *merkle.MerkleNode  // Root of Merkle tree
+	enableMerkle  bool                // Enable Merkle tree generation
 }
 
 func (w *Writer) writeBlock(buf *util.Buffer, compression opt.Compression) (bh blockHandle, err error) {
@@ -240,12 +240,7 @@ func (w *Writer) finishBlock() error {
 		return err
 	}
 
-	// Compute block hash before writing if Merkle enabled
-	if w.enableMerkle {
-		blockData := w.dataBlock.buf.Bytes()
-		blockHash := merkle.HashBlock(blockData)
-		w.blockHashes = append(w.blockHashes, blockHash)
-	}
+	// Note: Merkle tree entries are added in Append(), not here
 
 	bh, err := w.writeBlock(&w.dataBlock.buf, w.compression)
 	if err != nil {
@@ -281,6 +276,16 @@ func (w *Writer) Append(key, value []byte) error {
 	}
 	// Add key to the filter block.
 	w.filterBlock.add(key)
+
+	// Add key-value hash to Merkle tree builder if enabled
+	if w.enableMerkle && w.merkleBuilder != nil {
+		// Use hash as both key and value for the tree builder
+		// This way we only store hashes, not the actual key-value pairs
+		if err := w.merkleBuilder.AddLeaf(key, value); err != nil {
+			w.err = err
+			return w.err
+		}
+	}
 
 	// Finish the data block if block size target reached.
 	if w.dataBlock.bytesLen() >= w.blockSize {
@@ -343,24 +348,11 @@ func (w *Writer) Close() error {
 		return err
 	}
 
-	// Build Merkle tree if enabled
+	// Build Merkle tree if enabled and has entries
 	var merkleBH blockHandle
-	if w.enableMerkle && len(w.blockHashes) > 0 {
-		// Build Merkle tree from block hashes
-		builder := merkle.NewTreeBuilder(nil)
-		for i, hash := range w.blockHashes {
-			// Create leaf node for each block hash
-			// Use block index as key
-			key := make([]byte, 8)
-			binary.BigEndian.PutUint64(key, uint64(i))
-			value := hash.Bytes()
-			if err := builder.AddLeaf(key, value, 0); err != nil {
-				w.err = err
-				return w.err
-			}
-		}
-
-		root, err := builder.Build()
+	if w.enableMerkle && w.merkleBuilder != nil && w.nEntries > 0 {
+		// Build Merkle tree from key-value pairs
+		root, err := w.merkleBuilder.Build()
 		if err != nil {
 			w.err = err
 			return w.err
@@ -469,8 +461,8 @@ func NewWriter(f io.Writer, o *opt.Options, pool *util.BufferPool, size int) *Wr
 		comparerScratch: make([]byte, 0),
 		bpool:           pool,
 		dataBlock:       blockWriter{buf: *util.NewBuffer(bufBytes)},
-		enableMerkle:    true, // Enable Merkle tree by default
-		blockHashes:     make([]merkle.Hash, 0, 32),
+		enableMerkle:    true,                       // Enable Merkle tree by default
+		merkleBuilder:   merkle.NewTreeBuilder(nil), // Initialize Merkle tree builder
 	}
 	// data block
 	w.dataBlock.restartInterval = o.GetBlockRestartInterval()
