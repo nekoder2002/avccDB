@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/onsi/gomega"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/testutil"
@@ -37,7 +39,7 @@ func TestVersionStaging(t *testing.T) {
 	tmp := make([]byte, 4)
 	mik := func(i uint64) []byte {
 		binary.BigEndian.PutUint32(tmp, uint32(i))
-		return []byte(makeInternalKey(nil, tmp, 0, keyTypeVal))
+		return []byte(dbkey.MakeInternalKey(nil, tmp, 0, dbkey.KeyTypeVal))
 	}
 
 	for i, x := range []struct {
@@ -244,7 +246,7 @@ func TestVersionReference(t *testing.T) {
 	tmp := make([]byte, 4)
 	mik := func(i uint64) []byte {
 		binary.BigEndian.PutUint32(tmp, uint32(i))
-		return []byte(makeInternalKey(nil, tmp, 0, keyTypeVal))
+		return []byte(dbkey.MakeInternalKey(nil, tmp, 0, dbkey.KeyTypeVal))
 	}
 
 	// Test normal version task correctness
@@ -397,7 +399,7 @@ func benchmarkVersionStaging(b *testing.B, trivial bool, size int) {
 	tmp := make([]byte, 4)
 	mik := func(i uint64) []byte {
 		binary.BigEndian.PutUint32(tmp, uint32(i))
-		return []byte(makeInternalKey(nil, tmp, 0, keyTypeVal))
+		return []byte(dbkey.MakeInternalKey(nil, tmp, 0, dbkey.KeyTypeVal))
 	}
 
 	rec := &sessionRecord{}

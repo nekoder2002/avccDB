@@ -9,6 +9,8 @@ package leveldb
 import (
 	"bytes"
 	"testing"
+
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
 )
 
 func decodeEncode(v *sessionRecord) (res bool, err error) {
@@ -47,10 +49,10 @@ func TestSessionRecord_EncodeDecode(t *testing.T) {
 	for ; i < 4; i++ {
 		test()
 		v.addTable(3, big+300+i, big+400+i,
-			makeInternalKey(nil, []byte("foo"), uint64(big+500+1), keyTypeVal),
-			makeInternalKey(nil, []byte("zoo"), uint64(big+600+1), keyTypeDel))
+			dbkey.MakeInternalKey(nil, []byte("foo"), uint64(big+500+1), dbkey.KeyTypeVal),
+			dbkey.MakeInternalKey(nil, []byte("zoo"), uint64(big+600+1), dbkey.KeyTypeDel))
 		v.delTable(4, big+700+i)
-		v.addCompPtr(int(i), makeInternalKey(nil, []byte("x"), uint64(big+900+1), keyTypeVal))
+		v.addCompPtr(int(i), dbkey.MakeInternalKey(nil, []byte("x"), uint64(big+900+1), dbkey.KeyTypeVal))
 	}
 
 	v.setComparer("foo")

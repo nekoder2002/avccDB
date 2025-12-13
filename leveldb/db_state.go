@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/journal"
 	"github.com/syndtr/goleveldb/leveldb/memdb"
 	"github.com/syndtr/goleveldb/leveldb/storage"
@@ -62,7 +64,7 @@ func (db *DB) setSeq(seq uint64) {
 	atomic.StoreUint64(&db.seq, seq)
 }
 
-func (db *DB) sampleSeek(ikey internalKey) {
+func (db *DB) sampleSeek(ikey dbkey.InternalKey) {
 	v := db.s.version()
 	if v.sampleSeek(ikey) {
 		// Trigger table compaction.

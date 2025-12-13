@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -43,7 +45,7 @@ func (tr *Transaction) Get(key []byte, ro *opt.ReadOptions) ([]byte, error) {
 	if tr.closed {
 		return nil, errTransactionDone
 	}
-	return tr.db.get(tr.mem.DB, tr.tables, key, 0, tr.seq, ro)
+	return tr.db.get(tr.mem.DB, tr.tables, key, dbkey.LastestVersion, tr.seq, ro)
 }
 
 // Has returns true if the DB does contains the given key.
@@ -55,7 +57,7 @@ func (tr *Transaction) Has(key []byte, ro *opt.ReadOptions) (bool, error) {
 	if tr.closed {
 		return false, errTransactionDone
 	}
-	return tr.db.has(tr.mem.DB, tr.tables, key, tr.seq, ro)
+	return tr.db.has(tr.mem.DB, tr.tables, key, dbkey.LastestVersion, tr.seq, ro)
 }
 
 // NewIterator returns an iterator for the latest snapshot of the transaction.
@@ -115,8 +117,8 @@ func (tr *Transaction) flush() error {
 	return nil
 }
 
-func (tr *Transaction) put(kt keyType, key, value []byte) error {
-	tr.ikScratch = makeInternalKey(tr.ikScratch, key, tr.seq+1, kt)
+func (tr *Transaction) put(kt dbkey.KeyType, key, value []byte) error {
+	tr.ikScratch = dbkey.MakeInternalKey(tr.ikScratch, key, tr.seq+1, kt)
 	if tr.mem.Free() < len(tr.ikScratch)+len(value) {
 		if err := tr.flush(); err != nil {
 			return err
@@ -141,7 +143,7 @@ func (tr *Transaction) Put(key, value []byte, wo *opt.WriteOptions) error {
 	if tr.closed {
 		return errTransactionDone
 	}
-	return tr.put(keyTypeVal, key, value)
+	return tr.put(dbkey.KeyTypeVal, key, value)
 }
 
 // Delete deletes the value for the given key.
@@ -155,7 +157,7 @@ func (tr *Transaction) Delete(key []byte, wo *opt.WriteOptions) error {
 	if tr.closed {
 		return errTransactionDone
 	}
-	return tr.put(keyTypeDel, key, nil)
+	return tr.put(dbkey.KeyTypeDel, key, nil)
 }
 
 // Write apply the given batch to the transaction. The batch will be applied
@@ -174,7 +176,7 @@ func (tr *Transaction) Write(b *Batch, wo *opt.WriteOptions) error {
 	if tr.closed {
 		return errTransactionDone
 	}
-	return b.replayInternal(func(i int, kt keyType, k, v []byte) error {
+	return b.replayInternal(func(i int, kt dbkey.KeyType, k, v []byte) error {
 		return tr.put(kt, k, v)
 	})
 }

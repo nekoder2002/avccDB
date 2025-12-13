@@ -13,6 +13,7 @@ import (
 	"io"
 
 	"github.com/golang/snappy"
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
 
 	"github.com/syndtr/goleveldb/leveldb/comparer"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -281,7 +282,8 @@ func (w *Writer) Append(key, value []byte) error {
 	if w.enableMerkle && w.merkleBuilder != nil {
 		// Use hash as both key and value for the tree builder
 		// This way we only store hashes, not the actual key-value pairs
-		if err := w.merkleBuilder.AddLeaf(key, value); err != nil {
+		uvkey, _, _, _ := dbkey.ParseInternalKey(key)
+		if err := w.merkleBuilder.AddLeaf(uvkey, value); err != nil {
 			w.err = err
 			return w.err
 		}

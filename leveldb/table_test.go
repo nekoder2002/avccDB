@@ -12,6 +12,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/onsi/gomega"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/testutil"
@@ -30,7 +32,7 @@ func TestGetOverlaps(t *testing.T) {
 	v.newStaging()
 
 	tmp := make([]byte, 4)
-	mik := func(i uint64, typ keyType, ukey bool) []byte {
+	mik := func(i uint64, typ dbkey.KeyType, ukey bool) []byte {
 		if i == 0 {
 			return nil
 		}
@@ -40,7 +42,7 @@ func TestGetOverlaps(t *testing.T) {
 			copy(key, tmp)
 			return key
 		}
-		return []byte(makeInternalKey(nil, tmp, 0, typ))
+		return []byte(dbkey.MakeInternalKey(nil, tmp, 0, typ))
 	}
 
 	rec := &sessionRecord{}
@@ -59,7 +61,7 @@ func TestGetOverlaps(t *testing.T) {
 		{13, 13, 1},
 		{20, 100, 1},
 	} {
-		rec.addTable(f.level, int64(i), 1, mik(f.min, keyTypeVal, false), mik(f.max, keyTypeVal, false))
+		rec.addTable(f.level, int64(i), 1, mik(f.min, dbkey.KeyTypeVal, false), mik(f.max, dbkey.KeyTypeVal, false))
 	}
 	vs := v.newStaging()
 	vs.commit(rec)
@@ -92,7 +94,7 @@ func TestGetOverlaps(t *testing.T) {
 		{4, 105, 1, []int64{4, 5, 6}},
 	} {
 		tf := v.levels[x.level]
-		res := tf.getOverlaps(nil, s.icmp, mik(x.min, keyTypeSeek, true), mik(x.max, keyTypeSeek, true), x.level == 0)
+		res := tf.getOverlaps(nil, s.icmp, mik(x.min, dbkey.KeyTypeSeek, true), mik(x.max, dbkey.KeyTypeSeek, true), x.level == 0)
 
 		var fnums []int64
 		for _, f := range res {
@@ -124,7 +126,7 @@ func benchmarkGetOverlap(b *testing.B, level int, size int) {
 	v.newStaging()
 
 	tmp := make([]byte, 4)
-	mik := func(i uint64, typ keyType, ukey bool) []byte {
+	mik := func(i uint64, typ dbkey.KeyType, ukey bool) []byte {
 		if i == 0 {
 			return nil
 		}
@@ -134,13 +136,13 @@ func benchmarkGetOverlap(b *testing.B, level int, size int) {
 			copy(key, tmp)
 			return key
 		}
-		return []byte(makeInternalKey(nil, tmp, 0, typ))
+		return []byte(dbkey.MakeInternalKey(nil, tmp, 0, typ))
 	}
 
 	rec := &sessionRecord{}
 	for i := 1; i <= size; i++ {
-		min := mik(uint64(2*i), keyTypeVal, false)
-		max := mik(uint64(2*i+1), keyTypeVal, false)
+		min := mik(uint64(2*i), dbkey.KeyTypeVal, false)
+		max := mik(uint64(2*i+1), dbkey.KeyTypeVal, false)
 		rec.addTable(level, int64(i), 1, min, max)
 	}
 	vs := v.newStaging()
@@ -154,6 +156,6 @@ func benchmarkGetOverlap(b *testing.B, level int, size int) {
 		files := v.levels[level]
 		start := rand.Intn(size)
 		end := rand.Intn(size-start) + start
-		files.getOverlaps(nil, s.icmp, mik(uint64(2*start), keyTypeVal, true), mik(uint64(2*end), keyTypeVal, true), level == 0)
+		files.getOverlaps(nil, s.icmp, mik(uint64(2*start), dbkey.KeyTypeVal, true), mik(uint64(2*end), dbkey.KeyTypeVal, true), level == 0)
 	}
 }

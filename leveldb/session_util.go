@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/journal"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 )
@@ -337,17 +339,17 @@ func (s *session) reuseFileNum(num int64) {
 }
 
 // Set compaction ptr at given level; need external synchronization.
-func (s *session) setCompPtr(level int, ik internalKey) {
+func (s *session) setCompPtr(level int, ik dbkey.InternalKey) {
 	if level >= len(s.stCompPtrs) {
-		newCompPtrs := make([]internalKey, level+1)
+		newCompPtrs := make([]dbkey.InternalKey, level+1)
 		copy(newCompPtrs, s.stCompPtrs)
 		s.stCompPtrs = newCompPtrs
 	}
-	s.stCompPtrs[level] = append(internalKey{}, ik...)
+	s.stCompPtrs[level] = append(dbkey.InternalKey{}, ik...)
 }
 
 // Get compaction ptr at given level; need external synchronization.
-func (s *session) getCompPtr(level int) internalKey {
+func (s *session) getCompPtr(level int) dbkey.InternalKey {
 	if level >= len(s.stCompPtrs) {
 		return nil
 	}

@@ -12,6 +12,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/journal"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -52,9 +54,9 @@ type session struct {
 	manifestWriter storage.Writer
 	manifestFd     storage.FileDesc
 
-	stCompPtrs  []internalKey // compaction pointers; need external synchronization
-	stVersion   *version      // current version
-	ntVersionID int64         // next version id to assign
+	stCompPtrs  []dbkey.InternalKey // compaction pointers; need external synchronization
+	stVersion   *version            // current version
+	ntVersionID int64               // next version id to assign
 	refCh       chan *vTask
 	relCh       chan *vTask
 	deltaCh     chan *vDelta

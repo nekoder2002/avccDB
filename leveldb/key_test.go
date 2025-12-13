@@ -11,12 +11,13 @@ import (
 	"testing"
 
 	"github.com/syndtr/goleveldb/leveldb/comparer"
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
 )
 
 var defaultIComparer = &iComparer{comparer.DefaultComparer}
 
-func ikey(key string, seq uint64, kt keyType) internalKey {
-	return makeInternalKey(nil, []byte(key), seq, kt)
+func ikey(key string, seq uint64, kt dbkey.KeyType) dbkey.InternalKey {
+	return dbkey.MakeInternalKey(nil, []byte(key), seq, kt)
 }
 
 func shortSep(a, b []byte) []byte {
@@ -37,14 +38,14 @@ func shortSuccessor(b []byte) []byte {
 	return dst
 }
 
-func testSingleKey(t *testing.T, key string, seq uint64, kt keyType) {
+func testSingleKey(t *testing.T, key string, seq uint64, kt dbkey.KeyType) {
 	ik := ikey(key, seq, kt)
 
-	if !bytes.Equal(ik.ukey(), []byte(key)) {
-		t.Errorf("user key does not equal, got %v, want %v", string(ik.ukey()), key)
+	if !bytes.Equal(ik.UVkey(), []byte(key)) {
+		t.Errorf("user key does not equal, got %v, want %v", string(ik.UVkey()), key)
 	}
 
-	rseq, rt := ik.parseNum()
+	rseq, rt := ik.ParseNum()
 	if rseq != seq {
 		t.Errorf("seq number does not equal, got %v, want %v", rseq, seq)
 	}
@@ -52,9 +53,9 @@ func testSingleKey(t *testing.T, key string, seq uint64, kt keyType) {
 		t.Errorf("type does not equal, got %v, want %v", rt, kt)
 	}
 
-	if rukey, rseq, rt, kerr := parseInternalKey(ik); kerr == nil {
-		if !bytes.Equal(rukey, []byte(key)) {
-			t.Errorf("user key does not equal, got %v, want %v", string(ik.ukey()), key)
+	if ruvkey, rseq, rt, kerr := dbkey.ParseInternalKey(ik); kerr == nil {
+		if !bytes.Equal(ruvkey, []byte(key)) {
+			t.Errorf("user key does not equal, got %v, want %v", string(ik.UVkey()), key)
 		}
 		if rseq != seq {
 			t.Errorf("seq number does not equal, got %v, want %v", rseq, seq)
@@ -77,8 +78,8 @@ func TestInternalKey_EncodeDecode(t *testing.T) {
 	}
 	for _, key := range keys {
 		for _, seq := range seqs {
-			testSingleKey(t, key, seq, keyTypeVal)
-			testSingleKey(t, "hello", 1, keyTypeDel)
+			testSingleKey(t, key, seq, dbkey.KeyTypeVal)
+			testSingleKey(t, "hello", 1, dbkey.KeyTypeDel)
 		}
 	}
 }
@@ -91,43 +92,43 @@ func assertBytes(t *testing.T, want, got []byte) {
 
 func TestInternalKeyShortSeparator(t *testing.T) {
 	// When user keys are same
-	assertBytes(t, ikey("foo", 100, keyTypeVal),
-		shortSep(ikey("foo", 100, keyTypeVal),
-			ikey("foo", 99, keyTypeVal)))
-	assertBytes(t, ikey("foo", 100, keyTypeVal),
-		shortSep(ikey("foo", 100, keyTypeVal),
-			ikey("foo", 101, keyTypeVal)))
-	assertBytes(t, ikey("foo", 100, keyTypeVal),
-		shortSep(ikey("foo", 100, keyTypeVal),
-			ikey("foo", 100, keyTypeVal)))
-	assertBytes(t, ikey("foo", 100, keyTypeVal),
-		shortSep(ikey("foo", 100, keyTypeVal),
-			ikey("foo", 100, keyTypeDel)))
+	assertBytes(t, ikey("foo", 100, dbkey.KeyTypeVal),
+		shortSep(ikey("foo", 100, dbkey.KeyTypeVal),
+			ikey("foo", 99, dbkey.KeyTypeVal)))
+	assertBytes(t, ikey("foo", 100, dbkey.KeyTypeVal),
+		shortSep(ikey("foo", 100, dbkey.KeyTypeVal),
+			ikey("foo", 101, dbkey.KeyTypeVal)))
+	assertBytes(t, ikey("foo", 100, dbkey.KeyTypeVal),
+		shortSep(ikey("foo", 100, dbkey.KeyTypeVal),
+			ikey("foo", 100, dbkey.KeyTypeVal)))
+	assertBytes(t, ikey("foo", 100, dbkey.KeyTypeVal),
+		shortSep(ikey("foo", 100, dbkey.KeyTypeVal),
+			ikey("foo", 100, dbkey.KeyTypeDel)))
 
 	// When user keys are misordered
-	assertBytes(t, ikey("foo", 100, keyTypeVal),
-		shortSep(ikey("foo", 100, keyTypeVal),
-			ikey("bar", 99, keyTypeVal)))
+	assertBytes(t, ikey("foo", 100, dbkey.KeyTypeVal),
+		shortSep(ikey("foo", 100, dbkey.KeyTypeVal),
+			ikey("bar", 99, dbkey.KeyTypeVal)))
 
 	// When user keys are different, but correctly ordered
-	assertBytes(t, ikey("g", keyMaxSeq, keyTypeSeek),
-		shortSep(ikey("foo", 100, keyTypeVal),
-			ikey("hello", 200, keyTypeVal)))
+	assertBytes(t, ikey("g", dbkey.KeyMaxSeq, dbkey.KeyTypeSeek),
+		shortSep(ikey("foo", 100, dbkey.KeyTypeVal),
+			ikey("hello", 200, dbkey.KeyTypeVal)))
 
 	// When start user key is prefix of limit user key
-	assertBytes(t, ikey("foo", 100, keyTypeVal),
-		shortSep(ikey("foo", 100, keyTypeVal),
-			ikey("foobar", 200, keyTypeVal)))
+	assertBytes(t, ikey("foo", 100, dbkey.KeyTypeVal),
+		shortSep(ikey("foo", 100, dbkey.KeyTypeVal),
+			ikey("foobar", 200, dbkey.KeyTypeVal)))
 
 	// When limit user key is prefix of start user key
-	assertBytes(t, ikey("foobar", 100, keyTypeVal),
-		shortSep(ikey("foobar", 100, keyTypeVal),
-			ikey("foo", 200, keyTypeVal)))
+	assertBytes(t, ikey("foobar", 100, dbkey.KeyTypeVal),
+		shortSep(ikey("foobar", 100, dbkey.KeyTypeVal),
+			ikey("foo", 200, dbkey.KeyTypeVal)))
 }
 
 func TestInternalKeyShortestSuccessor(t *testing.T) {
-	assertBytes(t, ikey("g", keyMaxSeq, keyTypeSeek),
-		shortSuccessor(ikey("foo", 100, keyTypeVal)))
-	assertBytes(t, ikey("\xff\xff", 100, keyTypeVal),
-		shortSuccessor(ikey("\xff\xff", 100, keyTypeVal)))
+	assertBytes(t, ikey("g", dbkey.KeyMaxSeq, dbkey.KeyTypeSeek),
+		shortSuccessor(ikey("foo", 100, dbkey.KeyTypeVal)))
+	assertBytes(t, ikey("\xff\xff", 100, dbkey.KeyTypeVal),
+		shortSuccessor(ikey("\xff\xff", 100, dbkey.KeyTypeVal)))
 }

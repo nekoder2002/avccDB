@@ -12,6 +12,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 )
@@ -36,15 +38,15 @@ const (
 
 type cpRecord struct {
 	level int
-	ikey  internalKey
+	ikey  dbkey.InternalKey
 }
 
 type atRecord struct {
 	level int
 	num   int64
 	size  int64
-	imin  internalKey
-	imax  internalKey
+	imin  dbkey.InternalKey
+	imax  dbkey.InternalKey
 }
 
 type dtRecord struct {
@@ -96,7 +98,7 @@ func (p *sessionRecord) setSeqNum(num uint64) {
 	p.seqNum = num
 }
 
-func (p *sessionRecord) addCompPtr(level int, ikey internalKey) {
+func (p *sessionRecord) addCompPtr(level int, ikey dbkey.InternalKey) {
 	p.hasRec |= 1 << recCompPtr
 	p.compPtrs = append(p.compPtrs, cpRecord{level, ikey})
 }
@@ -106,7 +108,7 @@ func (p *sessionRecord) resetCompPtrs() {
 	p.compPtrs = p.compPtrs[:0]
 }
 
-func (p *sessionRecord) addTable(level int, num, size int64, imin, imax internalKey) {
+func (p *sessionRecord) addTable(level int, num, size int64, imin, imax dbkey.InternalKey) {
 	p.hasRec |= 1 << recAddTable
 	p.addedTables = append(p.addedTables, atRecord{level, num, size, imin, imax})
 }
@@ -299,7 +301,7 @@ func (p *sessionRecord) decode(r io.Reader) error {
 			level := p.readLevel("comp-ptr.level", br)
 			ikey := p.readBytes("comp-ptr.ikey", br)
 			if p.err == nil {
-				p.addCompPtr(level, internalKey(ikey))
+				p.addCompPtr(level, dbkey.InternalKey(ikey))
 			}
 		case recAddTable:
 			level := p.readLevel("add-table.level", br)

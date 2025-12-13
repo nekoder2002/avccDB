@@ -8,7 +8,6 @@ package leveldb
 
 import (
 	. "github.com/onsi/gomega"
-
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/testutil"

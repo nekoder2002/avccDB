@@ -13,6 +13,8 @@ import (
 	"testing"
 	"testing/quick"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/testutil"
 )
 
@@ -31,7 +33,7 @@ func TestBatchHeader(t *testing.T) {
 }
 
 type batchKV struct {
-	kt   keyType
+	kt   dbkey.KeyType
 	k, v []byte
 }
 
@@ -43,7 +45,7 @@ func TestBatch(t *testing.T) {
 	batch := new(Batch)
 	rbatch := new(Batch)
 	abatch := new(Batch)
-	testBatch := func(i int, kt keyType, k, v []byte) error {
+	testBatch := func(i int, kt dbkey.KeyType, k, v []byte) error {
 		kv := kvs[i]
 		if kv.kt != kt {
 			return fmt.Errorf("invalid key type, index=%d: %d vs %d", i, kv.kt, kt)
@@ -57,8 +59,8 @@ func TestBatch(t *testing.T) {
 		return nil
 	}
 	f := func(ktr uint8, k, v []byte) bool {
-		kt := keyType(ktr % 2)
-		if kt == keyTypeVal {
+		kt := dbkey.KeyType(ktr % 2)
+		if kt == dbkey.KeyTypeVal {
 			batch.Put(k, v)
 			rbatch.Put(k, v)
 			kvs = append(kvs, batchKV{kt: kt, k: k, v: v})

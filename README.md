@@ -27,11 +27,11 @@ defer db.Close()
 Read or modify the database content:
 ```go
 // Remember that the contents of the returned slice should not be modified.
-data, err := db.Get([]byte("key"), nil)
+data, err := db.Get([]byte("dbkey"), nil)
 ...
-err = db.Put([]byte("key"), []byte("value"), nil)
+err = db.Put([]byte("dbkey"), []byte("value"), nil)
 ...
-err = db.Delete([]byte("key"), nil)
+err = db.Delete([]byte("dbkey"), nil)
 ...
 ```
 
@@ -53,7 +53,7 @@ Seek-then-Iterate:
 ```go
 iter := db.NewIterator(nil, nil)
 for ok := iter.Seek(key); ok; ok = iter.Next() {
-	// Use key/value.
+	// Use dbkey/value.
 	...
 }
 iter.Release()
@@ -64,7 +64,7 @@ Iterate over subset of database content:
 ```go
 iter := db.NewIterator(&util.Range{Start: []byte("foo"), Limit: []byte("xoo")}, nil)
 for iter.Next() {
-	// Use key/value.
+	// Use dbkey/value.
 	...
 }
 iter.Release()
@@ -75,7 +75,7 @@ Iterate over subset of database content with a particular prefix:
 ```go
 iter := db.NewIterator(util.BytesPrefix([]byte("foo-")), nil)
 for iter.Next() {
-	// Use key/value.
+	// Use dbkey/value.
 	...
 }
 iter.Release()

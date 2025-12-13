@@ -1,180 +1,191 @@
 // Copyright (c) 2024 mLSM Implementation
-// Use of this source code is governed by a BSD-style license
+// MemDB Merkle tree support for in-memory key/value database
 
 package memdb
 
 import (
-	"bytes"
-	"sync"
+	"encoding/binary"
 
-	"github.com/syndtr/goleveldb/leveldb/comparer"
 	"github.com/syndtr/goleveldb/leveldb/merkle"
 )
 
-// MerkleDB wraps DB with Merkle tree support
-type MerkleDB struct {
-	*DB
-
-	mu sync.RWMutex
-
-	// Merkle tree built from current state
-	tree *merkle.MerkleTree
-
-	// Flag to indicate if tree needs rebuild
-	dirty bool
-
-	// Cached root hash
-	rootHash merkle.Hash
-
-	// Enable versioning
-	enableVersioning bool
+// MerkleSnapshot represents a snapshot of MemDB's Merkle tree state
+// Built lazily when proof is needed
+type MerkleSnapshot struct {
+	tree     *merkle.MerkleTree
+	keyIndex map[string]int // map from key to leaf index
+	keys     [][]byte       // ordered keys for lookup
+	values   [][]byte       // corresponding values
+	root     merkle.Hash
 }
 
-// NewMerkleDB creates a new MemDB with Merkle tree support
-func NewMerkleDB(cmp comparer.BasicComparer, capacity int) *MerkleDB {
-	return &MerkleDB{
-		DB:               New(cmp, capacity),
-		dirty:            true,
-		enableVersioning: true,
+// parseVersionedKey extracts ukey and version from internal key
+// Internal key format: ukey | version (8 bytes) | seq+type (8 bytes)
+func parseVersionedKey(ikey []byte) (ukey []byte, version uint64, ok bool) {
+	if len(ikey) < 16 {
+		return nil, 0, false
 	}
+	ukey = ikey[:len(ikey)-16]
+	version = binary.LittleEndian.Uint64(ikey[len(ikey)-16 : len(ikey)-8])
+	return ukey, version, true
 }
 
-// PutWithVersion puts a key-value pair with version number
-func (mdb *MerkleDB) PutWithVersion(key, value []byte, version uint64) error {
-	mdb.mu.Lock()
-	defer mdb.mu.Unlock()
-
-	// Store in underlying DB
-	// Note: The actual internal key encoding with version is handled at batch level
-	if err := mdb.DB.Put(key, value); err != nil {
-		return err
-	}
-
-	// Mark tree as dirty
-	mdb.dirty = true
-	return nil
+// MakeUVKey creates a key with version (ukey | version)
+func MakeUVKey(ukey []byte, version uint64) []byte {
+	uvkey := make([]byte, len(ukey)+8)
+	copy(uvkey, ukey)
+	binary.LittleEndian.PutUint64(uvkey[len(ukey):], version)
+	return uvkey
 }
 
-// BuildMerkleTree builds or rebuilds the Merkle tree from current state
-func (mdb *MerkleDB) BuildMerkleTree() error {
-	mdb.mu.Lock()
-	defer mdb.mu.Unlock()
+// BuildMerkleSnapshot builds a Merkle tree snapshot from the current MemDB state
+// This is a read-only operation that creates a point-in-time snapshot
+func (p *DB) BuildMerkleSnapshot() *MerkleSnapshot {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
-	if !mdb.dirty && mdb.tree != nil {
-		return nil // Tree is up to date
+	return p.buildMerkleSnapshotLocked()
+}
+
+// buildMerkleSnapshotLocked builds snapshot while holding lock
+func (p *DB) buildMerkleSnapshotLocked() *MerkleSnapshot {
+	if p.n == 0 {
+		return &MerkleSnapshot{
+			root: merkle.ZeroHash,
+		}
 	}
 
-	// Collect all key-value pairs
-	iter := mdb.DB.NewIterator(nil)
-	defer iter.Release()
-
-	var pairs []merkle.KVPair
-	for iter.Next() {
-		key := append([]byte(nil), iter.Key()...)
-		value := append([]byte(nil), iter.Value()...)
-
-		// Extract version if present (from internal key encoding)
-		version := uint64(0)
-		// For now, version extraction is simplified
-		// In production, parse from internal key format
-
-		pairs = append(pairs, merkle.KVPair{
-			Key:     key,
-			Value:   value,
-			Version: version,
-		})
+	snapshot := &MerkleSnapshot{
+		keyIndex: make(map[string]int),
+		keys:     make([][]byte, 0, p.n),
+		values:   make([][]byte, 0, p.n),
 	}
 
-	if len(pairs) == 0 {
-		mdb.tree = nil
-		mdb.rootHash = merkle.ZeroHash
-		mdb.dirty = false
-		return nil
+	// Collect all key-value pairs in sorted order using skip list traversal
+	leafHashes := make([]merkle.Hash, 0, p.n)
+
+	// Traverse skip list from beginning
+	node := p.nodeData[nNext] // First node at level 0
+	idx := 0
+	for node != 0 {
+		// Extract key and value
+		kvOffset := p.nodeData[node]
+		keyLen := p.nodeData[node+nKey]
+		valLen := p.nodeData[node+nVal]
+
+		ikey := make([]byte, keyLen)
+		copy(ikey, p.kvData[kvOffset:kvOffset+keyLen])
+
+		value := make([]byte, valLen)
+		copy(value, p.kvData[kvOffset+keyLen:kvOffset+keyLen+valLen])
+
+		// Store key and value
+		snapshot.keys = append(snapshot.keys, ikey)
+		snapshot.values = append(snapshot.values, value)
+		snapshot.keyIndex[string(ikey)] = idx
+
+		// Compute leaf hash using uvkey format: H(uvkey || value)
+		// uvkey = ukey | version (same format as SST)
+		ukey, version, ok := parseVersionedKey(ikey)
+		var leafHash merkle.Hash
+		if ok {
+			uvkey := MakeUVKey(ukey, version)
+			leafHash = merkle.HashLeaf(uvkey, value)
+		} else {
+			// Fallback: use full internal key
+			leafHash = merkle.HashLeaf(ikey, value)
+		}
+		leafHashes = append(leafHashes, leafHash)
+
+		// Move to next node at level 0
+		node = p.nodeData[node+nNext]
+		idx++
 	}
 
-	// Build tree
-	root, err := merkle.BuildFromSorted(pairs, bytes.Compare)
+	// Build Merkle tree from leaf hashes
+	if len(leafHashes) > 0 {
+		snapshot.tree = merkle.NewMerkleTree(leafHashes)
+		snapshot.root = snapshot.tree.GetRoot()
+	} else {
+		snapshot.root = merkle.ZeroHash
+	}
+
+	return snapshot
+}
+
+// GetRoot returns the Merkle root hash of the snapshot
+func (s *MerkleSnapshot) GetRoot() merkle.Hash {
+	if s == nil {
+		return merkle.ZeroHash
+	}
+	return s.root
+}
+
+// GenerateProof generates a Merkle proof for the given key
+// Returns the proof, value, and whether the key exists
+func (s *MerkleSnapshot) GenerateProof(key []byte) (*merkle.MerkleProof, []byte, bool) {
+	if s == nil || s.tree == nil {
+		return nil, nil, false
+	}
+
+	idx, exists := s.keyIndex[string(key)]
+	if !exists {
+		return nil, nil, false
+	}
+
+	proof, err := s.tree.GenerateProof(idx)
 	if err != nil {
-		return err
+		return nil, nil, false
 	}
 
-	mdb.tree = merkle.NewMerkleTree(root, bytes.Compare)
-	mdb.rootHash = mdb.tree.GetRoot()
-	mdb.dirty = false
-
-	return nil
+	return proof, s.values[idx], true
 }
 
-// GetRootHash returns the Merkle root hash
-func (mdb *MerkleDB) GetRootHash() (merkle.Hash, error) {
-	mdb.mu.RLock()
-	defer mdb.mu.RUnlock()
+// GetWithProof gets value and Merkle proof for a key from MemDB
+// This builds a snapshot and generates proof in one operation
+func (p *DB) GetWithProof(key []byte) (value []byte, proof *merkle.MerkleProof, root merkle.Hash, err error) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
-	if mdb.dirty {
-		// Need to rebuild - release read lock and acquire write lock
-		mdb.mu.RUnlock()
-		if err := mdb.BuildMerkleTree(); err != nil {
-			mdb.mu.RLock()
-			return merkle.ZeroHash, err
-		}
-		mdb.mu.RLock()
+	// First check if key exists
+	node, exact := p.findGE(key, false)
+	if !exact {
+		err = ErrNotFound
+		return
 	}
 
-	return mdb.rootHash, nil
-}
+	// Get the value
+	o := p.nodeData[node] + p.nodeData[node+nKey]
+	value = make([]byte, p.nodeData[node+nVal])
+	copy(value, p.kvData[o:o+p.nodeData[node+nVal]])
 
-// GetWithProof retrieves value and generates Merkle proof
-func (mdb *MerkleDB) GetWithProof(key []byte) (*merkle.MerkleProof, error) {
-	mdb.mu.RLock()
-	defer mdb.mu.RUnlock()
-
-	// Ensure tree is built
-	if mdb.dirty {
-		mdb.mu.RUnlock()
-		if err := mdb.BuildMerkleTree(); err != nil {
-			mdb.mu.RLock()
-			return nil, err
-		}
-		mdb.mu.RLock()
+	// Build Merkle snapshot
+	snapshot := p.buildMerkleSnapshotLocked()
+	if snapshot == nil || snapshot.tree == nil {
+		// Return value without proof
+		return value, nil, merkle.ZeroHash, nil
 	}
 
-	if mdb.tree == nil {
-		return nil, merkle.ErrEmptyTree
+	// Find key index in snapshot
+	idx, exists := snapshot.keyIndex[string(key)]
+	if !exists {
+		// Key not in snapshot (shouldn't happen)
+		return value, nil, snapshot.root, nil
 	}
 
 	// Generate proof
-	return mdb.tree.GenerateProof(key)
-}
-
-// GetTree returns the underlying Merkle tree (for testing/debugging)
-func (mdb *MerkleDB) GetTree() *merkle.MerkleTree {
-	mdb.mu.RLock()
-	defer mdb.mu.RUnlock()
-	return mdb.tree
-}
-
-// Stats returns Merkle tree statistics
-type MerkleStats struct {
-	TreeStats  merkle.TreeStats
-	RootHash   merkle.Hash
-	IsDirty    bool
-	NumEntries int
-}
-
-// GetMerkleStats returns statistics about the Merkle tree
-func (mdb *MerkleDB) GetMerkleStats() MerkleStats {
-	mdb.mu.RLock()
-	defer mdb.mu.RUnlock()
-
-	stats := MerkleStats{
-		RootHash:   mdb.rootHash,
-		IsDirty:    mdb.dirty,
-		NumEntries: mdb.DB.Len(),
+	proof, err = snapshot.tree.GenerateProof(idx)
+	if err != nil {
+		// Return value without proof
+		return value, nil, snapshot.root, nil
 	}
 
-	if mdb.tree != nil {
-		stats.TreeStats = mdb.tree.GetStats()
-	}
+	return value, proof, snapshot.root, nil
+}
 
-	return stats
+// GetMerkleRoot returns the current Merkle root of the MemDB
+// This builds a snapshot to compute the root
+func (p *DB) GetMerkleRoot() merkle.Hash {
+	snapshot := p.BuildMerkleSnapshot()
+	return snapshot.GetRoot()
 }

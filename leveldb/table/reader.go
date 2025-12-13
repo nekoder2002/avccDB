@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/golang/snappy"
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
 
 	"github.com/syndtr/goleveldb/leveldb/cache"
 	"github.com/syndtr/goleveldb/leveldb/comparer"
@@ -1103,7 +1104,8 @@ func (r *Reader) generateProofForKey(key, value []byte) (*merkle.MerkleProof, er
 	// 2. Using the tree structure to build the path to root
 
 	// Create a proof structure
-	proof, _ := r.merkleTree.GenerateProofByHash(merkle.HashLeaf(key, value))
+	uvkey, _, _, _ := dbkey.ParseInternalKey(key)
+	proof, _ := r.merkleTree.GenerateProofByHash(merkle.HashLeaf(uvkey, value))
 
 	return proof, nil
 }

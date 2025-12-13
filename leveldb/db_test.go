@@ -23,6 +23,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/onsi/gomega"
 
 	"github.com/syndtr/goleveldb/leveldb/comparer"
@@ -190,7 +192,7 @@ func (h *dbHarness) maxNextLevelOverlappingBytes(want int64) {
 			level := i + 1
 			next := v.levels[level+1]
 			for _, t := range tt {
-				r := next.getOverlaps(nil, db.s.icmp, t.imin.ukey(), t.imax.ukey(), false)
+				r := next.getOverlaps(nil, db.s.icmp, t.imin.UVkey(), t.imax.UVkey(), false)
 				sum := r.size()
 				if sum > maxOverlaps {
 					maxOverlaps = sum
@@ -277,7 +279,7 @@ func (h *dbHarness) allEntriesFor(key, want string) {
 	db := h.db
 	s := db.s
 
-	ikey := makeInternalKey(nil, []byte(key), keyMaxSeq, keyTypeVal)
+	ikey := dbkey.MakeInternalKey(nil, []byte(key), dbkey.KeyMaxSeq, dbkey.KeyTypeVal)
 	iter := db.newRawIterator(nil, nil, nil, nil)
 	if !iter.Seek(ikey) && iter.Error() != nil {
 		t.Error("AllEntries: error during seek, err: ", iter.Error())
@@ -286,8 +288,8 @@ func (h *dbHarness) allEntriesFor(key, want string) {
 	res := "[ "
 	first := true
 	for iter.Valid() {
-		if ukey, _, kt, kerr := parseInternalKey(iter.Key()); kerr == nil {
-			if s.icmp.uCompare(ikey.ukey(), ukey) != 0 {
+		if uvkey, _, kt, kerr := dbkey.ParseInternalKey(iter.Key()); kerr == nil {
+			if s.icmp.uCompare(ikey.UVkey(), uvkey) != 0 {
 				break
 			}
 			if !first {
@@ -295,9 +297,9 @@ func (h *dbHarness) allEntriesFor(key, want string) {
 			}
 			first = false
 			switch kt {
-			case keyTypeVal:
+			case dbkey.KeyTypeVal:
 				res += string(iter.Value())
-			case keyTypeDel:
+			case dbkey.KeyTypeDel:
 				res += "DEL"
 			}
 		} else {
@@ -1990,7 +1992,7 @@ func TestDB_LeveldbIssue178(t *testing.T) {
 	key1 := func(i int) string {
 		return fmt.Sprintf("my_key_%d", i)
 	}
-	key2 := func(i int) string {
+	key := func(i int) string {
 		return fmt.Sprintf("my_key_%d_xxx", i)
 	}
 
@@ -2012,14 +2014,14 @@ func TestDB_LeveldbIssue178(t *testing.T) {
 	// Create second key range.
 	batch.Reset()
 	for i := 0; i < nKeys; i++ {
-		batch.Put([]byte(key2(i)), []byte("value for range 2 key"))
+		batch.Put([]byte(key(i)), []byte("value for range 2 key"))
 	}
 	h.write(batch)
 
 	// Delete second key range.
 	batch.Reset()
 	for i := 0; i < nKeys; i++ {
-		batch.Delete([]byte(key2(i)))
+		batch.Delete([]byte(key(i)))
 	}
 	h.write(batch)
 	h.waitMemCompaction()
@@ -2619,7 +2621,7 @@ func TestDB_TableCompactionBuilder(t *testing.T) {
 			key := []byte(fmt.Sprintf("%09d", k))
 			seq += nSeq - 1
 			for x := uint64(0); x < nSeq; x++ {
-				if err := tw.append(makeInternalKey(nil, key, seq-x, keyTypeVal), value); err != nil {
+				if err := tw.append(dbkey.MakeInternalKey(nil, key, seq-x, dbkey.KeyTypeVal), value); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -2697,8 +2699,8 @@ func TestDB_TableCompactionBuilder(t *testing.T) {
 	}
 	for i, f := range v.levels[1][:len(v.levels[1])-1] {
 		nf := v.levels[1][i+1]
-		if bytes.Equal(f.imax.ukey(), nf.imin.ukey()) {
-			t.Fatalf("KEY %q hop across table %d .. %d", f.imax.ukey(), f.fd.Num, nf.fd.Num)
+		if bytes.Equal(f.imax.UVkey(), nf.imin.UVkey()) {
+			t.Fatalf("KEY %q hop across table %d .. %d", f.imax.UVkey(), f.fd.Num, nf.fd.Num)
 		}
 	}
 	v.release()

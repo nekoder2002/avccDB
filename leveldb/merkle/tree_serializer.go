@@ -252,21 +252,3 @@ func (ctf *CompactTreeFormat) GenerateProofByHash(leafHash Hash) (*MerkleProof, 
 func (ctf *CompactTreeFormat) GetRoot() Hash {
 	return ctf.RootHash
 }
-
-// VerifyProof verifies a Merkle proof
-func (ctf *CompactTreeFormat) VerifyProof(proof *MerkleProof, leafHash Hash) bool {
-	if proof == nil {
-		return false
-	}
-
-	currentHash := leafHash
-	for _, sibling := range proof.Path {
-		if sibling.IsLeft {
-			currentHash = HashInternal(sibling.Hash, currentHash)
-		} else {
-			currentHash = HashInternal(currentHash, sibling.Hash)
-		}
-	}
-
-	return currentHash.Equal(ctf.RootHash)
-}

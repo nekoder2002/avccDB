@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/memdb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -133,7 +135,7 @@ func (db *DB) flush(n int) (mdb *memDB, mdbFree int, err error) {
 type writeMerge struct {
 	sync       bool
 	batch      *Batch
-	keyType    keyType
+	KeyType    dbkey.KeyType
 	key, value []byte
 	version    uint64 // Version number for versioned writes
 }
@@ -212,9 +214,9 @@ func (db *DB) writeLocked(batch, ourBatch *Batch, merge, sync bool) error {
 					// We can use same batch since concurrent write doesn't
 					// guarantee write order.
 					if incoming.version > 0 {
-						ourBatch.appendRecWithVersion(incoming.keyType, incoming.key, incoming.value, incoming.version)
+						ourBatch.appendRecWithVersion(incoming.KeyType, incoming.key, incoming.value, incoming.version)
 					} else {
-						ourBatch.appendRec(incoming.keyType, incoming.key, incoming.value)
+						ourBatch.appendRec(incoming.KeyType, incoming.key, incoming.value)
 					}
 					mergeLimit -= internalLen
 				}
@@ -329,7 +331,7 @@ func (db *DB) Write(batch *Batch, wo *opt.WriteOptions) error {
 	return db.writeLocked(batch, nil, merge, sync)
 }
 
-func (db *DB) putRec(kt keyType, key, value []byte, wo *opt.WriteOptions) error {
+func (db *DB) putRec(kt dbkey.KeyType, key, value []byte, wo *opt.WriteOptions) error {
 	if err := db.ok(); err != nil {
 		return err
 	}
@@ -340,7 +342,7 @@ func (db *DB) putRec(kt keyType, key, value []byte, wo *opt.WriteOptions) error 
 	// Acquire write lock.
 	if merge {
 		select {
-		case db.writeMergeC <- writeMerge{sync: sync, keyType: kt, key: key, value: value}:
+		case db.writeMergeC <- writeMerge{sync: sync, KeyType: kt, key: key, value: value}:
 			if <-db.writeMergedC {
 				// Write is merged.
 				return <-db.writeAckC
@@ -381,7 +383,7 @@ func (db *DB) putRec(kt keyType, key, value []byte, wo *opt.WriteOptions) error 
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
 func (db *DB) Put(key, value []byte, wo *opt.WriteOptions) error {
-	return db.putRec(keyTypeVal, key, value, wo)
+	return db.putRec(dbkey.KeyTypeVal, key, value, wo)
 }
 
 // PutWithVersion sets the value for the given key with a specific version number.
@@ -403,7 +405,7 @@ func (db *DB) PutWithVersion(key, value []byte, version uint64, wo *opt.WriteOpt
 	// Acquire write lock.
 	if merge {
 		select {
-		case db.writeMergeC <- writeMerge{sync: sync, keyType: keyTypeVal, key: key, value: value, version: version}:
+		case db.writeMergeC <- writeMerge{sync: sync, KeyType: dbkey.KeyTypeVal, key: key, value: value, version: version}:
 			if <-db.writeMergedC {
 				// Write is merged.
 				return <-db.writeAckC
@@ -433,7 +435,7 @@ func (db *DB) PutWithVersion(key, value []byte, version uint64, wo *opt.WriteOpt
 
 	batch := db.batchPool.Get().(*Batch)
 	batch.Reset()
-	batch.appendRecWithVersion(keyTypeVal, key, value, version)
+	batch.appendRecWithVersion(dbkey.KeyTypeVal, key, value, version)
 	return db.writeLocked(batch, batch, merge, sync)
 }
 
@@ -443,14 +445,14 @@ func (db *DB) PutWithVersion(key, value []byte, version uint64, wo *opt.WriteOpt
 // It is safe to modify the contents of the arguments after Delete returns but
 // not before.
 func (db *DB) Delete(key []byte, wo *opt.WriteOptions) error {
-	return db.putRec(keyTypeDel, key, nil, wo)
+	return db.putRec(dbkey.KeyTypeDel, key, nil, wo)
 }
 
 func isMemOverlaps(icmp *iComparer, mem *memdb.DB, min, max []byte) bool {
 	iter := mem.NewIterator(nil)
 	defer iter.Release()
-	return (max == nil || (iter.First() && icmp.uCompare(max, internalKey(iter.Key()).ukey()) >= 0)) &&
-		(min == nil || (iter.Last() && icmp.uCompare(min, internalKey(iter.Key()).ukey()) <= 0))
+	return (max == nil || (iter.First() && icmp.uCompare(max, dbkey.InternalKey(iter.Key()).UVkey()) >= 0)) &&
+		(min == nil || (iter.Last() && icmp.uCompare(min, dbkey.InternalKey(iter.Key()).UVkey()) <= 0))
 }
 
 // CompactRange compacts the underlying DB for the given key range.

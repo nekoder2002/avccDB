@@ -1,0 +1,486 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="780a31d1-23f1-4705-8cfe-bd38cdb10a6f" name="更改" comment="提交merkle">
+      <change afterPath="$PROJECT_DIR$/.idea/go.imports.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/leveldb/db_proof.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/leveldb/dbkey/util.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/leveldb/mlsm_provenance_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/API参考.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作基础.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作接口.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/版本化批量操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/事务管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/基本操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/数据库接口.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/数据库管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/mLSM增强操作/GetWithProof操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/mLSM增强操作/PutWithVersion操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/mLSM增强操作/mLSM增强操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/标准读写操作/Delete操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/标准读写操作/Get操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/标准读写操作/Put操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/标准读写操作/Write操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/标准读写操作/标准读写操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/读写操作/读写操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/数据库接口/迭代器管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/迭代器接口/范围查询与扫描.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/迭代器接口/迭代器基础操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/迭代器接口/迭代器接口.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/迭代器接口/迭代器生命周期管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/存储配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/安全与完整性配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/安全策略配置/安全策略覆盖机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/安全策略配置/安全策略配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/安全策略配置/自定义安全策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/安全策略配置/预定义安全策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/故障处理策略/压缩故障处理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/故障处理策略/恢复策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/故障处理策略/故障处理策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/故障处理策略/读取故障处理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/数据验证配置/manifest完整性.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/数据验证配置/块级验证.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/数据验证配置/数据验证配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/安全与完整性配置/数据验证配置/校验和验证.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/性能配置/I_O优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/性能配置/内存管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/性能配置/性能配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/性能配置/缓存策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/配置选项接口.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/高级配置/压缩策略配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/高级配置/扩展功能配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/高级配置/数据访问优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/配置选项接口/高级配置/高级配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/错误处理接口.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/内部实现/内存数据结构.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/内部实现/内部实现.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/内部实现/存储格式.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/内部实现/持久化机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/工具与实用程序/命令行工具.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/工具与实用程序/工具与实用程序.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/工具与实用程序/手动测试工具/dbstress压力测试工具.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/工具与实用程序/手动测试工具/filelock文件锁测试工具.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/工具与实用程序/手动测试工具/手动测试工具.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/快速入门.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/内存管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入同步策略/NoSync全局控制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入同步策略/Sync标志机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入同步策略/写入同步策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入同步策略/性能与持久性权衡.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入缓冲区管理/L0层阈值行为与写入控制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入缓冲区管理/写入缓冲区概念与机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入缓冲区管理/写入缓冲区管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/写入缓冲区管理/缓冲区轮换（rotateMem）机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/批量写入优化/Batch结构详解.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/批量写入优化/写入合并机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/批量写入优化/批量写入优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/写入优化/批量写入优化/批量写入流程.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/性能优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/缓冲池.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/缓存策略/BlockCache机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/缓存策略/LRU算法实现.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/缓存策略/OpenFilesCache机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/缓存策略/缓存共享与PassthroughCacher.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/缓存策略/缓存策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/读取优化/Bloom过滤器优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/读取优化/块缓存机制/块缓存机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/读取优化/块缓存机制/缓存策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/读取优化/块缓存机制/缓存配置.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/读取优化/读取优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/读取优化/迭代器性能优化/迭代器使用实践.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/读取优化/迭代器性能优化/迭代器性能优化.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/性能优化/读取优化/迭代器性能优化/迭代器核心机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/扩展与集成/存储后端扩展.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/扩展与集成/扩展与集成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/扩展与集成/自定义比较器.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/扩展与集成/过滤器扩展.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/技术架构.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/写入流程/Flush触发与MemDB轮转.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/写入流程/Journal持久化机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/写入流程/MemDB内存写入.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/写入流程/写入合并机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/写入流程/写入流程.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/SSTable生成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/压缩流程.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/压缩触发机制/写入触发机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/压缩触发机制/压缩触发机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/压缩触发机制/周期检查触发机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/数据合并过程/平凡压缩.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/数据合并过程/数据合并过程.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/数据合并过程/非平凡压缩.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/版本信息更新.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/输入文件选择/自动选择.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/输入文件选择/范围查询选择.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/压缩流程/输入文件选择/输入文件选择.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/数据流.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/读取流程/MemDB查找.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/读取流程/SSTable查找.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/读取流程/快照一致性.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/读取流程/读取流程.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/读取流程/迭代器合并.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/MasterRoot计算/MasterRoot聚合计算.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/MasterRoot计算/MasterRoot计算.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/MasterRoot计算/版本化哈希计算.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/MasterRoot计算/跨层级一致性维护.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/Merkle树更新/Merkle树更新.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/Merkle树更新/SSTable压缩后的Merkle树重建.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/Merkle树更新/不可变Merkle树的维护机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/Merkle树更新/内存数据库中的Merkle树更新.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/证明生成/SSTable证明生成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/证明生成/内存数据库证明生成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/证明生成/证明生成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/证明验证/存在性证明验证.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/证明验证/证明验证.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/证明验证/非存在性证明验证.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/数据流/验证流程/验证流程.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/DB组件.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/MasterRoot管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/事务管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/会话管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/压缩管理/内存压缩.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/压缩管理/压缩管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/压缩管理/表压缩.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/快照管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/数据操作/写入操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/数据操作/批量操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/数据操作/数据操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/DB组件/数据操作/读取操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/MemDB组件.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/Manifest管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/Session组件.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/元数据管理/元数据管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/元数据管理/序列号管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/元数据管理/文件编号管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/元数据管理/日志编号管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/文件管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/版本管理/增量变更传播.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/版本管理/版本切换.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/版本管理/版本创建.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/版本管理/版本生命周期管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Session组件/版本管理/版本管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Storage组件/Storage组件.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Storage组件/内存存储实现.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Storage组件/存储接口.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Storage组件/文件存储实现.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Storage组件/测试存储包装器.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Table组件/Merkle集成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Table组件/SSTable格式.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Table组件/TableReader.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Table组件/TableWriter.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/Table组件/Table组件.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/核心组件/核心组件.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/设计模式/分层架构.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/设计模式/工厂模式.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/设计模式/观察者模式.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/设计模式/设计模式.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/技术架构/设计模式/迭代器模式.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/数据完整性与Merkle验证/MasterRoot管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/数据完整性与Merkle验证/Merkle树基础.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/数据完整性与Merkle验证/数据完整性与Merkle验证.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/数据完整性与Merkle验证/证明生成.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/数据完整性与Merkle验证/证明验证.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/批量写入/原子性保证机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/批量写入/性能优化策略.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/批量写入/批量写入.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/批量写入/批量操作基础.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/核心操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/迭代器/生命周期管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/迭代器/范围查询.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/迭代器/迭代器.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/迭代器/迭代器基础.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/键值操作/Delete操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/键值操作/Get操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/键值操作/Put操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/核心操作/键值操作/键值操作.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/测试与验证/CI_CD与自动化流程.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/测试与验证/测试与验证.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/测试与验证/测试工具与辅助包.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/测试与验证/测试类型.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/版本控制与数据溯源/历史版本查询.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/版本控制与数据溯源/快照管理.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/版本控制与数据溯源/版本化存储.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/版本控制与数据溯源/版本控制与数据溯源.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/项目概述.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/高级特性/事务.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/高级特性/压缩.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/高级特性/快照.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/高级特性/配置选项.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/高级特性/高级特性.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/meta/repowiki-metadata.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmd/leveldb-inspector/main.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/batch.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/batch.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/batch_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/batch_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/comparer.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/comparer.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/comparer_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/comparer_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/db.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/db_compaction.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_compaction.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/db_iter.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_iter.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/db_snapshot.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_snapshot.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/db_state.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_state.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/db_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/db_transaction.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_transaction.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/db_write.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_write.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/filter.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/filter.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/key.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/dbkey/key.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/key_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/key_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/memdb/memdb_merkle.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/memdb/memdb_merkle.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/merkle/node.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/merkle/node.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/merkle/tree.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/merkle/tree.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/merkle/tree_serializer.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/merkle/tree_serializer.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_final_comprehensive_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/mlsm_final_comprehensive_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_version_history_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/session.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/session_compaction.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session_compaction.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/session_record.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session_record.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/session_record_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session_record_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/session_util.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session_util.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/table.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/table.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/table/merkle_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/table/reader.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/table/reader.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/table/writer.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/table/writer.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/table_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/table_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/testutil_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/testutil_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/version.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/version.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/leveldb/version_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/version_test.go" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go File" />
+      </list>
+    </option>
+  </component>
+  <component name="GOROOT" url="file://$USER_HOME$/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.8.linux-amd64" />
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;nekoder2002&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;git@github.com:nekoder2002/avccDB.git&quot;,
+    &quot;accountId&quot;: &quot;e4bcbaa6-1f2a-4d22-b861-bb378df9d71b&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="36byZPypswmp3F5kNulI15wdU7e" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultGoTemplateProperty": "Go File",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive.executor": "Run",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestProvenanceWithProof.executor": "Run",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionHistory.executor": "Run",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestEmptyTableMerkle.executor": "Run",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestGenerateProofForKey.executor": "Debug",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleProofGeneration.executor": "Run",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleProofWithModifiedData.executor": "Run",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleWriteAndRead.executor": "Debug",
+    "Go 测试.github.com/syndtr/goleveldb/leveldb/vcs 中的 TestNewBVMT.executor": "Run",
+    "Go 测试.go test github.com/syndtr/goleveldb/leveldb/table.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.GoLinterPluginOnboardingV2": "true",
+    "RunOnceActivity.GoLinterPluginStorageMigration": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.go.formatter.settings.were.checked": "true",
+    "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "git-widget-placeholder": "master",
+    "go.import.settings.migrated": "true",
+    "go.sdk.automatically.set": "true",
+    "last_opened_file_path": "/root",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm"
+  }
+}]]></component>
+  <component name="RdControllerToolWindowsLayoutState" isNewUi="true">
+    <layout>
+      <window_info id="Bookmarks" side_tool="true" />
+      <window_info id="Merge Requests" />
+      <window_info id="Backup and Sync History" />
+      <window_info id="Commit_Guest" show_stripe_button="false" />
+      <window_info id="Pull Requests" />
+      <window_info id="Learn" show_stripe_button="false" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.17864116" />
+      <window_info id="Commit" order="1" weight="0.17864116" />
+      <window_info id="VcsChanges" order="2" weight="0.20558375" />
+      <window_info id="Structure" order="2" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Database Changes" />
+      <window_info anchor="bottom" id="TypeScript" />
+      <window_info anchor="bottom" id="TODO" />
+      <window_info anchor="bottom" id="File Transfer" />
+      <window_info anchor="bottom" id="Version Control" order="0" weight="0.3298636" />
+      <window_info anchor="bottom" id="Problems" order="1" />
+      <window_info anchor="bottom" id="Problems View" order="2" weight="0.3298636" />
+      <window_info anchor="bottom" id="Terminal" order="3" weight="0.3298636" />
+      <window_info anchor="bottom" id="Services" order="4" />
+      <window_info anchor="bottom" id="Debug" order="5" weight="0.3298636" />
+      <window_info anchor="bottom" id="Find" order="5" weight="0.3298636" />
+      <window_info anchor="bottom" id="Run" order="6" weight="0.3298636" />
+      <window_info anchor="right" id="Endpoints" />
+      <window_info anchor="right" id="make" side_tool="true" />
+      <window_info anchor="right" id="documentation.v2" side_tool="true" />
+      <window_info anchor="right" id="Coverage" side_tool="true" />
+      <window_info anchor="right" content_ui="combo" id="Notifications" order="0" weight="0.25" />
+      <window_info anchor="right" id="AIAssistant" order="1" weight="0.25" />
+      <window_info anchor="right" id="Database" order="2" weight="0.25" />
+      <window_info anchor="right" id="Gradle" order="3" weight="0.25" />
+      <window_info anchor="right" id="Maven" order="4" weight="0.25" />
+      <window_info anchor="right" id="Translation.Wordbook" order="5" side_tool="true" />
+      <window_info anchor="right" id="Qoder" order="5" weight="0.2348692" />
+    </layout>
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/leveldb" />
+      <recent name="$PROJECT_DIR$/leveldb/dbkey" />
+      <recent name="$PROJECT_DIR$/leveldb/key" />
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/leveldb/merkle" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive">
+    <configuration name="github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="avccDB" />
+      <working_directory value="$PROJECT_DIR$/leveldb" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/syndtr/goleveldb/leveldb" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestMLSMFinalComprehensive\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="github.com/syndtr/goleveldb/leveldb 中的 TestProvenanceWithProof" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="avccDB" />
+      <working_directory value="$PROJECT_DIR$/leveldb" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/syndtr/goleveldb/leveldb" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestProvenanceWithProof\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="github.com/syndtr/goleveldb/leveldb 中的 TestVersionHistory" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="avccDB" />
+      <working_directory value="$PROJECT_DIR$/leveldb" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/syndtr/goleveldb/leveldb" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestVersionHistory\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="github.com/syndtr/goleveldb/leveldb/table 中的 TestEmptyTableMerkle" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="avccDB" />
+      <working_directory value="$PROJECT_DIR$/leveldb/table" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/syndtr/goleveldb/leveldb/table" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestEmptyTableMerkle\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="go test github.com/syndtr/goleveldb/leveldb/table" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="avccDB" />
+      <working_directory value="$PROJECT_DIR$/leveldb/table" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/syndtr/goleveldb/leveldb/table" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive" />
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestProvenanceWithProof" />
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionHistory" />
+        <item itemvalue="Go 测试.go test github.com/syndtr/goleveldb/leveldb/table" />
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestEmptyTableMerkle" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-gosdk-72a9cf600ed8-448e06e64ec5-org.jetbrains.plugins.go.sharedIndexes.bundled-GO-253.28294.337" />
+        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-GO-253.28294.337" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="应用程序级" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="780a31d1-23f1-4705-8cfe-bd38cdb10a6f" name="更改" comment="提交merkle" />
+      <created>1765609844616</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1765609844616</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="修正merkle证明" />
+    <option name="LAST_COMMIT_MESSAGE" value="修正merkle证明" />
+  </component>
+  <component name="XDebuggerManager">
+    <watches-manager>
+      <configuration name="GoTestRunConfiguration">
+        <watch expression="tr" language="go" />
+      </configuration>
+    </watches-manager>
+  </component>
+</project>

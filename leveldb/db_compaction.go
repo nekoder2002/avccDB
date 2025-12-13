@@ -8,6 +8,7 @@ package leveldb
 
 import (
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -336,8 +337,8 @@ func (db *DB) memCompaction() {
 	// Drop frozen memdb.
 	db.dropFrozenMem()
 
-	// Update MasterRoot after flush
-	db.updateMasterRoot()
+	//// Update MasterRoot after flush
+	//db.updateMasterRoot()
 
 	// Resume table compaction.
 	if resumeC != nil {
@@ -470,7 +471,7 @@ func (b *tableCompactionBuilder) run(cnt *compactionTransactCounter) (err error)
 		}
 
 		ikey := iter.Key()
-		ukey, _, seq, kt, kerr := parseInternalKeyWithVersion(ikey)
+		ukey, _, seq, kt, kerr := dbkey.ParseInternalKeyWithVersion(ikey)
 
 		if kerr == nil {
 			shouldStop := !resumed && b.c.shouldStopBefore(ikey)
@@ -478,7 +479,7 @@ func (b *tableCompactionBuilder) run(cnt *compactionTransactCounter) (err error)
 			if !hasLastUkey || b.s.icmp.uCompare(lastUkey, ukey) != 0 {
 				// First occurrence of this user key.
 
-				// Only rotate tables if ukey doesn't hop across.
+				// Only rotate tables if uvkey doesn't hop across.
 				if b.tw != nil && (shouldStop || b.needFlush()) {
 					if err := b.flush(); err != nil {
 						return err
@@ -496,7 +497,7 @@ func (b *tableCompactionBuilder) run(cnt *compactionTransactCounter) (err error)
 
 				hasLastUkey = true
 				lastUkey = append(lastUkey[:0], ukey...)
-				lastSeq = keyMaxSeq
+				lastSeq = dbkey.KeyMaxSeq
 			}
 
 			switch {
@@ -505,7 +506,7 @@ func (b *tableCompactionBuilder) run(cnt *compactionTransactCounter) (err error)
 				// All keys are versioned - preserve all versions
 				// Don't drop, keep for historical state verification
 				lastSeq = seq
-			case kt == keyTypeDel && seq <= b.minSeq && b.c.baseLevelForKey(lastUkey):
+			case kt == dbkey.KeyTypeDel && seq <= b.minSeq && b.c.baseLevelForKey(lastUkey):
 				// For mLSM: PRESERVE Tombstones (deletion markers)
 				// Tombstones are needed to prove non-existence in Merkle proofs
 				// Original LevelDB would drop obsolete deletion markers here
@@ -525,7 +526,7 @@ func (b *tableCompactionBuilder) run(cnt *compactionTransactCounter) (err error)
 			// Don't drop corrupted keys.
 			hasLastUkey = false
 			lastUkey = lastUkey[:0]
-			lastSeq = keyMaxSeq
+			lastSeq = dbkey.KeyMaxSeq
 			b.kerrCnt++
 		}
 
@@ -615,8 +616,8 @@ func (db *DB) tableCompaction(c *compaction, noTrivial bool) {
 		atomic.AddUint32(&db.seekComp, 1)
 	}
 
-	// Update MasterRoot after table compaction
-	db.updateMasterRoot()
+	//// Update MasterRoot after table compaction
+	//db.updateMasterRoot()
 }
 
 func (db *DB) tableRangeCompaction(level int, umin, umax []byte) error {

@@ -7,6 +7,7 @@
 package leveldb
 
 import (
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 )
 
@@ -15,7 +16,7 @@ type iFilter struct {
 }
 
 func (f iFilter) Contains(filter, key []byte) bool {
-	return f.Filter.Contains(filter, internalKey(key).ukey())
+	return f.Filter.Contains(filter, dbkey.InternalKey(key).UVkey())
 }
 
 func (f iFilter) NewGenerator() filter.FilterGenerator {
@@ -27,5 +28,5 @@ type iFilterGenerator struct {
 }
 
 func (g iFilterGenerator) Add(key []byte) {
-	g.FilterGenerator.Add(internalKey(key).ukey())
+	g.FilterGenerator.Add(dbkey.InternalKey(key).UVkey())
 }

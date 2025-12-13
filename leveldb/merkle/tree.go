@@ -131,50 +131,7 @@ func (mt *MerkleTree) GenerateProof(leafIndex int) (*MerkleProof, error) {
 	return proof, nil
 }
 
-// VerifyProof verifies a Merkle proof
-func (mt *MerkleTree) VerifyProof(proof *MerkleProof, leafHash Hash) bool {
-	if proof == nil {
-		return false
-	}
-
-	// Start with leaf hash
-	currentHash := leafHash
-
-	// Hash up the tree
-	for i := 0; i < len(proof.Path); i++ {
-		sibling := proof.Path[i]
-		if sibling.IsLeft {
-			// Sibling is on the left
-			currentHash = HashInternal(sibling.Hash, currentHash)
-		} else {
-			// Sibling is on the right
-			currentHash = HashInternal(currentHash, sibling.Hash)
-		}
-	}
-
-	// Final hash should match the root
-	return currentHash.Equal(mt.rootHash)
-}
-
 // GetStats returns tree statistics
 func (mt *MerkleTree) GetStats() TreeStats {
 	return mt.stats
-}
-
-// BuildTreeFromLeaves builds a MerkleTree from leaf key-value pairs
-// This is a compatibility function for code that uses MerkleNode
-func BuildTreeFromLeaves(leaves []*MerkleNode) *MerkleTree {
-	if len(leaves) == 0 {
-		return &MerkleTree{
-			rootHash: ZeroHash,
-		}
-	}
-
-	// Extract hashes from leaves
-	leafHashes := make([]Hash, len(leaves))
-	for i, leaf := range leaves {
-		leafHashes[i] = leaf.Hash
-	}
-
-	return NewMerkleTree(leafHashes)
 }

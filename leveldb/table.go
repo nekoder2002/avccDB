@@ -12,6 +12,8 @@ import (
 	"sort"
 	"sync/atomic"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/cache"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/merkle"
@@ -26,22 +28,44 @@ type tFile struct {
 	fd         storage.FileDesc
 	seekLeft   int32
 	size       int64
-	imin, imax internalKey
+	imin, imax dbkey.InternalKey
 }
 
 // Returns true if given key is after largest key of this table.
 func (t *tFile) after(icmp *iComparer, ukey []byte) bool {
-	return ukey != nil && icmp.uCompare(ukey, t.imax.ukey()) > 0
+	return ukey != nil && icmp.uCompare(ukey, t.imax.UVkey()) > 0
 }
 
 // Returns true if given key is before smallest key of this table.
 func (t *tFile) before(icmp *iComparer, ukey []byte) bool {
-	return ukey != nil && icmp.uCompare(ukey, t.imin.ukey()) < 0
+	return ukey != nil && icmp.uCompare(ukey, t.imin.UVkey()) < 0
 }
 
 // Returns true if given key range overlaps with this table key range.
 func (t *tFile) overlaps(icmp *iComparer, umin, umax []byte) bool {
 	return !t.after(icmp, umin) && !t.before(icmp, umax)
+}
+
+// overlapsUkey returns true if given pure ukey (without version) overlaps with this table.
+// This extracts the pure ukey from the table's imin/imax for comparison.
+func (t *tFile) overlapsUkey(icmp *iComparer, ukey []byte) bool {
+	if ukey == nil {
+		return true
+	}
+	// Extract pure ukey from imin and imax (format: ukey | version | seq)
+	var iminUkey, imaxUkey []byte
+	if len(t.imin) >= 16 {
+		iminUkey = t.imin[:len(t.imin)-16]
+	} else {
+		iminUkey = t.imin.UVkey()
+	}
+	if len(t.imax) >= 16 {
+		imaxUkey = t.imax[:len(t.imax)-16]
+	} else {
+		imaxUkey = t.imax.UVkey()
+	}
+	// Check if ukey is within range [iminUkey, imaxUkey]
+	return icmp.uCompare(ukey, imaxUkey) <= 0 && icmp.uCompare(ukey, iminUkey) >= 0
 }
 
 // Cosumes one seek and return current seeks left.
@@ -50,7 +74,7 @@ func (t *tFile) consumeSeek() int32 {
 }
 
 // Creates new tFile.
-func newTableFile(fd storage.FileDesc, size int64, imin, imax internalKey) *tFile {
+func newTableFile(fd storage.FileDesc, size int64, imin, imax dbkey.InternalKey) *tFile {
 	f := &tFile{
 		fd:   fd,
 		size: size,
@@ -126,7 +150,7 @@ func (tf tFiles) size() (sum int64) {
 
 // Searches smallest index of tables whose its smallest
 // key is after or equal with given key.
-func (tf tFiles) searchMin(icmp *iComparer, ikey internalKey) int {
+func (tf tFiles) searchMin(icmp *iComparer, ikey dbkey.InternalKey) int {
 	return sort.Search(len(tf), func(i int) bool {
 		return icmp.Compare(tf[i].imin, ikey) >= 0
 	})
@@ -134,7 +158,7 @@ func (tf tFiles) searchMin(icmp *iComparer, ikey internalKey) int {
 
 // Searches smallest index of tables whose its largest
 // key is after or equal with given key.
-func (tf tFiles) searchMax(icmp *iComparer, ikey internalKey) int {
+func (tf tFiles) searchMax(icmp *iComparer, ikey dbkey.InternalKey) int {
 	return sort.Search(len(tf), func(i int) bool {
 		return icmp.Compare(tf[i].imax, ikey) >= 0
 	})
@@ -152,7 +176,7 @@ func (tf tFiles) searchNumLess(num int64) int {
 // key is after the given key.
 func (tf tFiles) searchMinUkey(icmp *iComparer, umin []byte) int {
 	return sort.Search(len(tf), func(i int) bool {
-		return icmp.ucmp.Compare(tf[i].imin.ukey(), umin) > 0
+		return icmp.ucmp.Compare(tf[i].imin.UVkey(), umin) > 0
 	})
 }
 
@@ -160,7 +184,7 @@ func (tf tFiles) searchMinUkey(icmp *iComparer, umin []byte) int {
 // key is after the given key.
 func (tf tFiles) searchMaxUkey(icmp *iComparer, umax []byte) int {
 	return sort.Search(len(tf), func(i int) bool {
-		return icmp.ucmp.Compare(tf[i].imax.ukey(), umax) > 0
+		return icmp.ucmp.Compare(tf[i].imax.UVkey(), umax) > 0
 	})
 }
 
@@ -180,7 +204,7 @@ func (tf tFiles) overlaps(icmp *iComparer, umin, umax []byte, unsorted bool) boo
 	i := 0
 	if len(umin) > 0 {
 		// Find the earliest possible internal key for min.
-		i = tf.searchMax(icmp, makeInternalKey(nil, umin, keyMaxSeq, keyTypeSeek))
+		i = tf.searchMax(icmp, dbkey.MakeInternalKey(nil, umin, dbkey.KeyMaxSeq, dbkey.KeyTypeSeek))
 	}
 	if i >= len(tf) {
 		// Beginning of range is after all files, so no overlap.
@@ -190,7 +214,7 @@ func (tf tFiles) overlaps(icmp *iComparer, umin, umax []byte, unsorted bool) boo
 }
 
 // Returns tables whose its key range overlaps with given key range.
-// Range will be expanded if ukey found hop across tables.
+// Range will be expanded if uvkey found hop across tables.
 // If overlapped is true then the search will be restarted if umax
 // expanded.
 // The dst content will be overwritten.
@@ -199,7 +223,7 @@ func (tf tFiles) getOverlaps(dst tFiles, icmp *iComparer, umin, umax []byte, ove
 	if len(tf) == 0 {
 		return nil
 	}
-	// For non-zero levels, there is no ukey hop across at all.
+	// For non-zero levels, there is no uvkey hop across at all.
 	// And what's more, the files in these levels are strictly sorted,
 	// so use binary search instead of heavy traverse.
 	if !overlapped {
@@ -209,8 +233,8 @@ func (tf tFiles) getOverlaps(dst tFiles, icmp *iComparer, umin, umax []byte, ove
 			index := tf.searchMinUkey(icmp, umin)
 			if index == 0 {
 				begin = 0
-			} else if bytes.Compare(tf[index-1].imax.ukey(), umin) >= 0 {
-				// The min ukey overlaps with the index-1 file, expand it.
+			} else if bytes.Compare(tf[index-1].imax.UVkey(), umin) >= 0 {
+				// The min uvkey overlaps with the index-1 file, expand it.
 				begin = index - 1
 			} else {
 				begin = index
@@ -221,8 +245,8 @@ func (tf tFiles) getOverlaps(dst tFiles, icmp *iComparer, umin, umax []byte, ove
 			index := tf.searchMaxUkey(icmp, umax)
 			if index == len(tf) {
 				end = len(tf)
-			} else if bytes.Compare(tf[index].imin.ukey(), umax) <= 0 {
-				// The max ukey overlaps with the index file, expand it.
+			} else if bytes.Compare(tf[index].imin.UVkey(), umax) <= 0 {
+				// The max uvkey overlaps with the index file, expand it.
 				end = index + 1
 			} else {
 				end = index
@@ -243,13 +267,13 @@ func (tf tFiles) getOverlaps(dst tFiles, icmp *iComparer, umin, umax []byte, ove
 	for i := 0; i < len(tf); {
 		t := tf[i]
 		if t.overlaps(icmp, umin, umax) {
-			if umin != nil && icmp.uCompare(t.imin.ukey(), umin) < 0 {
-				umin = t.imin.ukey()
+			if umin != nil && icmp.uCompare(t.imin.UVkey(), umin) < 0 {
+				umin = t.imin.UVkey()
 				dst = dst[:0]
 				i = 0
 				continue
-			} else if umax != nil && icmp.uCompare(t.imax.ukey(), umax) > 0 {
-				umax = t.imax.ukey()
+			} else if umax != nil && icmp.uCompare(t.imax.UVkey(), umax) > 0 {
+				umax = t.imax.UVkey()
 				// Restart search if it is overlapped.
 				dst = dst[:0]
 				i = 0
@@ -265,7 +289,7 @@ func (tf tFiles) getOverlaps(dst tFiles, icmp *iComparer, umin, umax []byte, ove
 }
 
 // Returns tables key range.
-func (tf tFiles) getRange(icmp *iComparer) (imin, imax internalKey) {
+func (tf tFiles) getRange(icmp *iComparer) (imin, imax dbkey.InternalKey) {
 	for i, t := range tf {
 		if i == 0 {
 			imin, imax = t.imin, t.imax
@@ -287,10 +311,10 @@ func (tf tFiles) newIndexIterator(tops *tOps, icmp *iComparer, slice *util.Range
 	if slice != nil {
 		var start, limit int
 		if slice.Start != nil {
-			start = tf.searchMax(icmp, internalKey(slice.Start))
+			start = tf.searchMax(icmp, slice.Start)
 		}
 		if slice.Limit != nil {
-			limit = tf.searchMin(icmp, internalKey(slice.Limit))
+			limit = tf.searchMin(icmp, slice.Limit)
 		} else {
 			limit = tf.Len()
 		}
@@ -315,7 +339,7 @@ type tFilesArrayIndexer struct {
 }
 
 func (a *tFilesArrayIndexer) Search(key []byte) int {
-	return a.searchMax(a.icmp, internalKey(key))
+	return a.searchMax(a.icmp, key)
 }
 
 func (a *tFilesArrayIndexer) Get(i int) iterator.Iterator {
@@ -615,7 +639,7 @@ func (w *tWriter) finish() (f *tFile, err error) {
 			return
 		}
 	}
-	f = newTableFile(w.fd, int64(w.tw.BytesLen()), internalKey(w.first), internalKey(w.last))
+	f = newTableFile(w.fd, int64(w.tw.BytesLen()), w.first, w.last)
 	return
 }
 

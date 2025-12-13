@@ -13,6 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -110,7 +112,7 @@ func (snap *Snapshot) Get(key []byte, ro *opt.ReadOptions) (value []byte, err er
 	if err != nil {
 		return
 	}
-	return snap.db.get(nil, nil, key, 0, snap.elem.seq, ro)
+	return snap.db.get(nil, nil, key, dbkey.LastestVersion, snap.elem.seq, ro)
 }
 
 // Has returns true if the DB does contains the given key.
@@ -127,7 +129,7 @@ func (snap *Snapshot) Has(key []byte, ro *opt.ReadOptions) (ret bool, err error)
 	if err != nil {
 		return
 	}
-	return snap.db.has(nil, nil, key, snap.elem.seq, ro)
+	return snap.db.has(nil, nil, key, dbkey.LastestVersion, snap.elem.seq, ro)
 }
 
 // NewIterator returns an iterator for the snapshot of the underlying DB.

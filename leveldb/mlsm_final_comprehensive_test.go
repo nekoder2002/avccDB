@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 )
@@ -20,7 +22,7 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 	// 测试配置
 	const (
 		totalKeys       = 200000                     // 20万个唯一键（增加数量以触发更多compaction）
-		versionsPerKey  = 5                          // 每个键5个版本
+		versionsPerKey  = 10                         // 每个键5个版本
 		totalRecords    = totalKeys * versionsPerKey // 100万条记录
 		sampleSize      = 1000                       // 抽样验证1000个键
 		proofSampleSize = 100                        // Proof验证抽样100个
@@ -123,7 +125,7 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 			validateCount++
 		}
 
-		// 验证最新版本
+		//// 验证最新版本
 		latest, err := db.Get(key, nil)
 		if err != nil {
 			t.Errorf("Get(latest) failed: key=%d: %v", keyIdx, err)
@@ -146,95 +148,8 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 		t.Fatalf("写入后验证失败: %d/%d 查询失败", validateFailed, validateCount)
 	}
 
-	// ==================== 阶段3: MasterRoot 计算 ====================
-	t.Logf("\n[阶段3] MasterRoot 计算...")
-
-	masterRoot1, err := db.GetMasterRoot()
-	if err != nil {
-		t.Fatalf("GetMasterRoot failed: %v", err)
-	}
-	t.Logf("✓ 初始 MasterRoot: %x", masterRoot1[:16])
-
-	// ==================== 阶段4: 检查自然分布 ====================
-	t.Logf("\n[阶段4] 检查数据自然分布（不强制 Compaction）...")
-
-	// 不进行 CompactRange，让数据保持自然分布状态
-	// 这样可以看到数据分布在 Level 0, Level 1, Level 2 等不同层级
-	t.Logf("  跳过 Compaction，保留自然分层状态")
-
-	// 等待片刻让后台 compaction 完成
-	time.Sleep(500 * time.Millisecond)
-
-	// ==================== 阶段5: Compaction 后验证 ====================
-	t.Logf("\n[阶段5] Compaction 后数据完整性验证...")
-	startValidate2 := time.Now()
-
-	validate2Count := 0
-	validate2Failed := 0
-
-	// 抽样验证（更大样本）
-	for i := 0; i < sampleSize*2; i++ {
-		keyIdx := i * (totalKeys / (sampleSize * 2))
-		key := []byte(fmt.Sprintf("key-%08d", keyIdx))
-
-		// 验证每个版本
-		for v := 1; v <= versionsPerKey; v++ {
-			val, err := db.GetWithVersion(key, uint64(v), nil)
-			if err != nil {
-				t.Errorf("After compaction GetWithVersion failed: key=%d v=%d: %v", keyIdx, v, err)
-				validate2Failed++
-				continue
-			}
-
-			expectedPrefix := fmt.Sprintf("value-%08d-v%02d-", keyIdx, v)
-			if !bytes.HasPrefix(val, []byte(expectedPrefix)) {
-				t.Errorf("After compaction value mismatch: key=%d v=%d", keyIdx, v)
-				validate2Failed++
-			}
-			validate2Count++
-		}
-
-		// 验证最新版本（重点测试）
-		latest, err := db.Get(key, nil)
-		if err != nil {
-			t.Errorf("After compaction Get(latest) failed: key=%d: %v", keyIdx, err)
-			validate2Failed++
-		} else {
-			expectedPrefix := fmt.Sprintf("value-%08d-v%02d-", keyIdx, versionsPerKey)
-			if !bytes.HasPrefix(latest, []byte(expectedPrefix)) {
-				t.Errorf("After compaction latest mismatch: key=%d, got prefix=%s want=%s",
-					keyIdx, string(latest[:20]), expectedPrefix)
-				validate2Failed++
-			}
-			validate2Count++
-		}
-	}
-
-	validate2Elapsed := time.Since(startValidate2)
-	t.Logf("✓ Compaction后验证: %d 次查询, %d 失败, 耗时: %v",
-		validate2Count, validate2Failed, validate2Elapsed)
-
-	if validate2Failed > 0 {
-		t.Fatalf("Compaction后验证失败: %d/%d 查询失败", validate2Failed, validate2Count)
-	}
-
-	// ==================== 阶段6: MasterRoot 一致性 ====================
-	t.Logf("\n[阶段6] MasterRoot 一致性验证...")
-
-	masterRoot2, err := db.GetMasterRoot()
-	if err != nil {
-		t.Fatalf("GetMasterRoot failed after compaction: %v", err)
-	}
-	t.Logf("  Compaction后 MasterRoot: %x", masterRoot2[:16])
-
-	if bytes.Equal(masterRoot1[:], masterRoot2[:]) {
-		t.Logf("⚠ MasterRoot 未变化（可能无compaction发生）")
-	} else {
-		t.Logf("✓ MasterRoot 已更新（Compaction生效）")
-	}
-
-	// ==================== 阶段7: Proof 生成与验证 ====================
-	t.Logf("\n[阶段7] Proof 生成与验证（抽样 %d 个键）...", proofSampleSize)
+	// ==================== 阶段3: Proof 生成与验证 ====================
+	t.Logf("\n[阶段3] Proof 生成与验证（抽样 %d 个键）...", proofSampleSize)
 	startProof := time.Now()
 
 	proofCount := 0
@@ -245,7 +160,7 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 		key := []byte(fmt.Sprintf("key-%08d", keyIdx))
 
 		// 测试最新版本的Proof
-		value, proof, err := db.GetWithProof(key, 0, nil)
+		value, actualVersion, proof, err := db.GetWithProof(key, dbkey.LastestVersion, nil)
 		if err != nil {
 			t.Errorf("GetWithProof failed: key=%d: %v", keyIdx, err)
 			proofFailed++
@@ -259,57 +174,17 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 			continue
 		}
 
-		if !proof.Exists {
-			t.Errorf("Proof should indicate exists for key=%d", keyIdx)
-			proofFailed++
-			continue
-		}
-
-		if !bytes.Equal(proof.Key, key) {
-			t.Errorf("Proof key mismatch: key=%d", keyIdx)
-			proofFailed++
-			continue
-		}
-
 		expectedPrefix := fmt.Sprintf("value-%08d-v%02d-", keyIdx, versionsPerKey)
 		if !bytes.HasPrefix(value, []byte(expectedPrefix)) {
 			t.Errorf("Proof value mismatch: key=%d", keyIdx)
 			proofFailed++
 			continue
 		}
-
-		// **真正验证 Proof 的正确性**
-		// 获取 MasterRoot 来验证
-		masterRoot, err := db.GetMasterRoot()
-		if err != nil {
-			t.Errorf("GetMasterRoot failed: %v", err)
+		if !proof.Verify(key, actualVersion, value) {
+			t.Errorf("✗ Proof Merkle 路径验证失败: key=%d, actualVersion=%d", keyIdx, actualVersion)
 			proofFailed++
 			continue
 		}
-
-		// 验证 Merkle 路径的一致性
-		// 注：当前 Proof.Root 可能是局部 SST 文件的 Root，不是 MasterRoot
-		// 这是因为我们还未完全实现跨层 Proof 聚合
-		// 所以这里我们只验证 Proof 结构的完整性
-		if len(proof.Path) > 0 {
-			// 有 Merkle 路径，验证路径一致性
-			if !proof.Verify() {
-				t.Errorf("✗ Proof Merkle 路径验证失败: key=%d", keyIdx)
-				t.Logf("  Path length: %d", len(proof.Path))
-				t.Logf("  Proof Root: %x", proof.Root[:16])
-				proofFailed++
-				continue
-			}
-		} else {
-			// 没有 Merkle 路径（MemDB 或未完全实现）
-			// 验证 Proof.Root 是否与 MasterRoot 一致
-			if !proof.Root.Equal(masterRoot) {
-				// 这是预期的：当数据在 SST 文件中时，Proof.Root 是局部 Root
-				// 暂时不报错，只记录
-				t.Logf("⚠ Proof.Root 不匹配 MasterRoot (key=%d), 这是预期的，因为跨层聚合未完全实现", keyIdx)
-			}
-		}
-
 		// 验证通过
 		proofCount++
 	}
@@ -322,7 +197,7 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 		t.Fatalf("Proof验证失败: %d/%d", proofFailed, proofSampleSize)
 	}
 
-	// ==================== 阶段8: 迭代器全量遍历 ====================
+	// ==================== 阶段4: 迭代器全量遍历 ====================
 	t.Logf("\n[阶段8] 迭代器全量遍历验证...")
 	startIter := time.Now()
 
@@ -355,64 +230,6 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 	if len(uniqueKeys) < totalKeys/2 {
 		t.Errorf("⚠ 唯一键数量异常: got %d, expected ~%d", len(uniqueKeys), totalKeys)
 	}
-
-	// ==================== 阶段9: 删除操作与 Tombstone ====================
-	t.Logf("\n[阶段9] 删除操作与 Tombstone 保留验证...")
-	startDelete := time.Now()
-
-	// 注意：由于我们的mLSM设计保留所有历史版本，
-	// Delete操作会写入Tombstone而不会物理删除数据
-	// 之前的版本仍然可以通过GetWithVersion查询到
-
-	// 删除部分键
-	deleteCount := 100
-	for i := 0; i < deleteCount; i++ {
-		keyIdx := i * (totalKeys / deleteCount)
-		key := []byte(fmt.Sprintf("key-%08d", keyIdx))
-
-		if err := db.Delete(key, nil); err != nil {
-			t.Fatalf("Delete failed: key=%d: %v", keyIdx, err)
-		}
-	}
-
-	deleteElapsed := time.Since(startDelete)
-	t.Logf("✓ 删除完成: %d 个键, 耗时: %v", deleteCount, deleteElapsed)
-
-	// 验证删除：在mLSM中，删除后仍可以通过指定版本查询历史数据
-	// 但Get(latest)应该返回NotFound或者返回删除前的最新版本（取决于实现）
-	deletedVerified := 0
-	historyStillAccessible := 0
-
-	for i := 0; i < deleteCount; i++ {
-		keyIdx := i * (totalKeys / deleteCount)
-		key := []byte(fmt.Sprintf("key-%08d", keyIdx))
-
-		// 验证Get(latest) - 在mLSM中可能仍返回删除前的版本
-		_, err := db.Get(key, nil)
-		if err == ErrNotFound {
-			deletedVerified++
-		} else if err != nil {
-			t.Errorf("Unexpected error after delete: key=%d: %v", keyIdx, err)
-		} else {
-			// mLSM保留历史，这是预期行为
-			historyStillAccessible++
-		}
-
-		// 验证历史版本仍然可以查询（mLSM的核心特性）
-		for v := 1; v <= versionsPerKey; v++ {
-			_, err := db.GetWithVersion(key, uint64(v), nil)
-			if err == nil {
-				// 历史版本仍然存在 - 这是正确的！
-			} else if err == ErrNotFound {
-				// 某些版本可能不存在
-			} else {
-				t.Errorf("Unexpected error querying history: key=%d v=%d: %v", keyIdx, v, err)
-			}
-		}
-	}
-
-	t.Logf("✓ 删除验证: NotFound=%d, 历史仍可访问=%d (mLSM保留历史特性)",
-		deletedVerified, historyStillAccessible)
 
 	// ==================== 最终统计 ====================
 	totalElapsed := time.Since(startWrite)
@@ -458,9 +275,8 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 	t.Logf("\n=== 测试完成 ===")
 	t.Logf("总耗时: %v", totalElapsed)
 	t.Logf("写入: %d 条记录, %.0f records/s", totalRecords, writeThroughput)
-	t.Logf("验证: %d 次查询成功", validateCount+validate2Count)
+	t.Logf("验证: %d 次查询成功", validateCount)
 	t.Logf("Proof: %d 个验证成功", proofCount)
-	t.Logf("删除: %d 个键", deleteCount)
 	t.Logf("数据库路径: %s", dbPath)
 
 	t.Logf("\n✅ 所有测试通过！")

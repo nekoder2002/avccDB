@@ -10,6 +10,8 @@ import (
 	"sort"
 	"sync/atomic"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/memdb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
@@ -45,7 +47,7 @@ func (s *session) flushMemdb(rec *sessionRecord, mdb *memdb.DB, maxLevel int) (i
 	// higher level, thus maximum possible level is always picked, while
 	// overlapping deletion marker pushed into lower level.
 	// See: https://github.com/syndtr/goleveldb/issues/127.
-	flushLevel := s.pickMemdbLevel(t.imin.ukey(), t.imax.ukey(), maxLevel)
+	flushLevel := s.pickMemdbLevel(t.imin.UVkey(), t.imax.UVkey(), maxLevel)
 	rec.addTableFile(flushLevel, t)
 
 	s.logf("memdb@flush created L%d@%d N·%d S·%s %q:%q", flushLevel, t.fd.Num, n, shortenb(t.size), t.imin, t.imax)
@@ -162,7 +164,7 @@ type compaction struct {
 	gpi               int
 	seenKey           bool
 	gpOverlappedBytes int64
-	imin, imax        internalKey
+	imin, imax        dbkey.InternalKey
 	tPtrs             []int
 	released          bool
 
@@ -205,25 +207,25 @@ func (c *compaction) expand() {
 	t0, t1 := c.levels[0], c.levels[1]
 	imin, imax := t0.getRange(c.s.icmp)
 
-	// For non-zero levels, the ukey can't hop across tables at all.
+	// For non-zero levels, the uvkey can't hop across tables at all.
 	if c.sourceLevel == 0 {
-		// We expand t0 here just incase ukey hop across tables.
-		t0 = vt0.getOverlaps(t0, c.s.icmp, imin.ukey(), imax.ukey(), c.sourceLevel == 0)
+		// We expand t0 here just incase uvkey hop across tables.
+		t0 = vt0.getOverlaps(t0, c.s.icmp, imin.UVkey(), imax.UVkey(), c.sourceLevel == 0)
 		if len(t0) != len(c.levels[0]) {
 			imin, imax = t0.getRange(c.s.icmp)
 		}
 	}
-	t1 = vt1.getOverlaps(t1, c.s.icmp, imin.ukey(), imax.ukey(), false)
+	t1 = vt1.getOverlaps(t1, c.s.icmp, imin.UVkey(), imax.UVkey(), false)
 	// Get entire range covered by compaction.
 	amin, amax := append(t0, t1...).getRange(c.s.icmp)
 
 	// See if we can grow the number of inputs in "sourceLevel" without
 	// changing the number of "sourceLevel+1" files we pick up.
 	if len(t1) > 0 {
-		exp0 := vt0.getOverlaps(nil, c.s.icmp, amin.ukey(), amax.ukey(), c.sourceLevel == 0)
+		exp0 := vt0.getOverlaps(nil, c.s.icmp, amin.UVkey(), amax.UVkey(), c.sourceLevel == 0)
 		if len(exp0) > len(t0) && t1.size()+exp0.size() < limit {
 			xmin, xmax := exp0.getRange(c.s.icmp)
-			exp1 := vt1.getOverlaps(nil, c.s.icmp, xmin.ukey(), xmax.ukey(), false)
+			exp1 := vt1.getOverlaps(nil, c.s.icmp, xmin.UVkey(), xmax.UVkey(), false)
 			if len(exp1) == len(t1) {
 				c.s.logf("table@compaction expanding L%d+L%d (F·%d S·%s)+(F·%d S·%s) -> (F·%d S·%s)+(F·%d S·%s)",
 					c.sourceLevel, c.sourceLevel+1, len(t0), shortenb(t0.size()), len(t1), shortenb(t1.size()),
@@ -238,7 +240,7 @@ func (c *compaction) expand() {
 	// Compute the set of grandparent files that overlap this compaction
 	// (parent == sourceLevel+1; grandparent == sourceLevel+2)
 	if level := c.sourceLevel + 2; level < len(c.v.levels) {
-		c.gp = c.v.levels[level].getOverlaps(c.gp, c.s.icmp, amin.ukey(), amax.ukey(), false)
+		c.gp = c.v.levels[level].getOverlaps(c.gp, c.s.icmp, amin.UVkey(), amax.UVkey(), false)
 	}
 
 	c.levels[0], c.levels[1] = t0, t1
@@ -255,9 +257,9 @@ func (c *compaction) baseLevelForKey(ukey []byte) bool {
 		tables := c.v.levels[level]
 		for c.tPtrs[level] < len(tables) {
 			t := tables[c.tPtrs[level]]
-			if c.s.icmp.uCompare(ukey, t.imax.ukey()) <= 0 {
+			if c.s.icmp.uCompare(ukey, t.imax.UVkey()) <= 0 {
 				// We've advanced far enough.
-				if c.s.icmp.uCompare(ukey, t.imin.ukey()) >= 0 {
+				if c.s.icmp.uCompare(ukey, t.imin.UVkey()) >= 0 {
 					// Key falls in this file's range, so definitely not base level.
 					return false
 				}
@@ -269,7 +271,7 @@ func (c *compaction) baseLevelForKey(ukey []byte) bool {
 	return true
 }
 
-func (c *compaction) shouldStopBefore(ikey internalKey) bool {
+func (c *compaction) shouldStopBefore(ikey dbkey.InternalKey) bool {
 	for ; c.gpi < len(c.gp); c.gpi++ {
 		gp := c.gp[c.gpi]
 		if c.s.icmp.Compare(ikey, gp.imax) <= 0 {

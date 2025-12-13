@@ -12,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -65,10 +67,10 @@ func (db *DB) newIterator(auxm *memDB, auxt tFiles, seq uint64, slice *util.Rang
 	if slice != nil {
 		islice = &util.Range{}
 		if slice.Start != nil {
-			islice.Start = makeInternalKey(nil, slice.Start, keyMaxSeq, keyTypeSeek)
+			islice.Start = dbkey.MakeInternalKey(nil, slice.Start, dbkey.KeyMaxSeq, dbkey.KeyTypeSeek)
 		}
 		if slice.Limit != nil {
-			islice.Limit = makeInternalKey(nil, slice.Limit, keyMaxSeq, keyTypeSeek)
+			islice.Limit = dbkey.MakeInternalKey(nil, slice.Limit, dbkey.KeyMaxSeq, dbkey.KeyTypeSeek)
 		}
 	}
 	rawIter := db.newRawIterator(auxm, auxt, islice, ro)
@@ -191,7 +193,7 @@ func (i *dbIter) Seek(key []byte) bool {
 		return false
 	}
 
-	ikey := makeInternalKey(nil, key, i.seq, keyTypeSeek)
+	ikey := dbkey.MakeInternalKey(nil, key, i.seq, dbkey.KeyTypeSeek)
 	if i.iter.Seek(ikey) {
 		i.dir = dirSOI
 		return i.next()
@@ -206,19 +208,19 @@ func (i *dbIter) next() bool {
 		// Parse as versioned key (all keys must be versioned)
 		var ukey []byte
 		var seq uint64
-		var kt keyType
+		var kt dbkey.KeyType
 		var kerr error
 		iterKey := i.iter.Key()
-		ukey, _, seq, kt, kerr = parseInternalKeyWithVersion(iterKey)
+		ukey, _, seq, kt, kerr = dbkey.ParseInternalKeyWithVersion(iterKey)
 		if kerr == nil {
 			i.sampleSeek()
 			if seq <= i.seq {
 				switch kt {
-				case keyTypeDel:
+				case dbkey.KeyTypeDel:
 					// Skip deleted key.
 					i.key = append(i.key[:0], ukey...)
 					i.dir = dirForward
-				case keyTypeVal:
+				case dbkey.KeyTypeVal:
 					if i.dir == dirSOI || i.icmp.uCompare(ukey, i.key) > 0 {
 						i.key = append(i.key[:0], ukey...)
 						i.value = append(i.value[:0], i.iter.Value()...)
@@ -264,17 +266,17 @@ func (i *dbIter) prev() bool {
 			// Parse as versioned key (all keys must be versioned)
 			var ukey []byte
 			var seq uint64
-			var kt keyType
+			var kt dbkey.KeyType
 			var kerr error
 			iterKey := i.iter.Key()
-			ukey, _, seq, kt, kerr = parseInternalKeyWithVersion(iterKey)
+			ukey, _, seq, kt, kerr = dbkey.ParseInternalKeyWithVersion(iterKey)
 			if kerr == nil {
 				i.sampleSeek()
 				if seq <= i.seq {
 					if !del && i.icmp.uCompare(ukey, i.key) < 0 {
 						return true
 					}
-					del = (kt == keyTypeDel)
+					del = (kt == dbkey.KeyTypeDel)
 					if !del {
 						i.key = append(i.key[:0], ukey...)
 						i.value = append(i.value[:0], i.iter.Value()...)
@@ -314,7 +316,7 @@ func (i *dbIter) Prev() bool {
 			var ukey []byte
 			var kerr error
 			iterKey := i.iter.Key()
-			ukey, _, _, _, kerr = parseInternalKeyWithVersion(iterKey)
+			ukey, _, _, _, kerr = dbkey.ParseInternalKeyWithVersion(iterKey)
 			if kerr == nil {
 				i.sampleSeek()
 				if i.icmp.uCompare(ukey, i.key) < 0 {

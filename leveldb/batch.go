@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/syndtr/goleveldb/leveldb/dbkey"
+
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/memdb"
 	"github.com/syndtr/goleveldb/leveldb/storage"
@@ -42,7 +44,7 @@ type BatchReplay interface {
 }
 
 type batchIndex struct {
-	keyType            keyType
+	KeyType            dbkey.KeyType
 	keyPos, keyLen     int
 	valuePos, valueLen int
 	version            uint64 // Version number for versioned keys
@@ -91,14 +93,14 @@ func (b *Batch) grow(n int) {
 	}
 }
 
-func (b *Batch) appendRec(kt keyType, key, value []byte) {
+func (b *Batch) appendRec(kt dbkey.KeyType, key, value []byte) {
 	b.appendRecWithVersion(kt, key, value, 0)
 }
 
 // appendRecWithVersion appends a record with version number
-func (b *Batch) appendRecWithVersion(kt keyType, key, value []byte, version uint64) {
+func (b *Batch) appendRecWithVersion(kt dbkey.KeyType, key, value []byte, version uint64) {
 	n := 1 + binary.MaxVarintLen32 + len(key)
-	if kt == keyTypeVal {
+	if kt == dbkey.KeyTypeVal {
 		n += binary.MaxVarintLen32 + len(value)
 	}
 	// Add space for version if non-zero
@@ -106,7 +108,7 @@ func (b *Batch) appendRecWithVersion(kt keyType, key, value []byte, version uint
 		n += binary.MaxVarintLen64
 	}
 	b.grow(n)
-	index := batchIndex{keyType: kt, version: version}
+	index := batchIndex{KeyType: kt, version: version}
 	o := len(b.data)
 	data := b.data[:o+n]
 	data[o] = byte(kt)
@@ -119,7 +121,7 @@ func (b *Batch) appendRecWithVersion(kt keyType, key, value []byte, version uint
 	index.keyPos = o
 	index.keyLen = len(key)
 	o += copy(data[o:], key)
-	if kt == keyTypeVal {
+	if kt == dbkey.KeyTypeVal {
 		o += binary.PutUvarint(data[o:], uint64(len(value)))
 		index.valuePos = o
 		index.valueLen = len(value)
@@ -139,19 +141,19 @@ func (b *Batch) appendRecWithVersion(kt keyType, key, value []byte, version uint
 // It is safe to modify the contents of the argument after Put returns but not
 // before.
 func (b *Batch) Put(key, value []byte) {
-	b.appendRec(keyTypeVal, key, value)
+	b.appendRec(dbkey.KeyTypeVal, key, value)
 }
 
 // PutWithVersion appends 'put operation' with version number
 func (b *Batch) PutWithVersion(key, value []byte, version uint64) {
-	b.appendRecWithVersion(keyTypeVal, key, value, version)
+	b.appendRecWithVersion(dbkey.KeyTypeVal, key, value, version)
 }
 
 // Delete appends 'delete operation' of the given key to the batch.
 // It is safe to modify the contents of the argument after Delete returns but
 // not before.
 func (b *Batch) Delete(key []byte) {
-	b.appendRec(keyTypeDel, key, nil)
+	b.appendRec(dbkey.KeyTypeDel, key, nil)
 }
 
 // Dump dumps batch contents. The returned slice can be loaded into the
@@ -173,10 +175,10 @@ func (b *Batch) Load(data []byte) error {
 // Replay replays batch contents.
 func (b *Batch) Replay(r BatchReplay) error {
 	for _, index := range b.index {
-		switch index.keyType {
-		case keyTypeVal:
+		switch index.KeyType {
+		case dbkey.KeyTypeVal:
 			r.Put(index.k(b.data), index.v(b.data))
-		case keyTypeDel:
+		case dbkey.KeyTypeDel:
 			r.Delete(index.k(b.data))
 		}
 	}
@@ -195,9 +197,9 @@ func (b *Batch) Reset() {
 	b.internalLen = 0
 }
 
-func (b *Batch) replayInternal(fn func(i int, kt keyType, k, v []byte) error) error {
+func (b *Batch) replayInternal(fn func(i int, kt dbkey.KeyType, k, v []byte) error) error {
 	for i, index := range b.index {
-		if err := fn(i, index.keyType, index.k(b.data), index.v(b.data)); err != nil {
+		if err := fn(i, index.KeyType, index.k(b.data), index.v(b.data)); err != nil {
 			return err
 		}
 	}
@@ -245,9 +247,9 @@ func (b *Batch) putMem(seq uint64, mdb *memdb.DB) error {
 	var ik []byte
 	for i, index := range b.index {
 		if index.version > 0 {
-			ik = makeInternalKeyWithVersion(ik, index.k(b.data), index.version, seq+uint64(i), index.keyType)
+			ik = dbkey.MakeInternalKeyWithVersion(ik, index.k(b.data), index.version, seq+uint64(i), index.KeyType)
 		} else {
-			ik = makeInternalKey(ik, index.k(b.data), seq+uint64(i), index.keyType)
+			ik = dbkey.MakeInternalKey(ik, index.k(b.data), seq+uint64(i), index.KeyType)
 		}
 		if err := mdb.Put(ik, index.v(b.data)); err != nil {
 			return err
@@ -305,9 +307,9 @@ func decodeBatch(data []byte, fn func(i int, index batchIndex) error) error {
 	var index batchIndex
 	for i, o := 0, 0; o < len(data); i++ {
 		// Key type.
-		index.keyType = keyType(data[o])
-		if index.keyType > keyTypeVal {
-			return newErrBatchCorrupted(fmt.Sprintf("bad record: invalid type %#x", uint(index.keyType)))
+		index.KeyType = dbkey.KeyType(data[o])
+		if index.KeyType > dbkey.KeyTypeVal {
+			return newErrBatchCorrupted(fmt.Sprintf("bad record: invalid type %#x", uint(index.KeyType)))
 		}
 		o++
 
@@ -322,7 +324,7 @@ func decodeBatch(data []byte, fn func(i int, index batchIndex) error) error {
 		o += index.keyLen
 
 		// Value.
-		if index.keyType == keyTypeVal {
+		if index.KeyType == dbkey.KeyTypeVal {
 			x, n = binary.Uvarint(data[o:])
 			o += n
 			if n <= 0 || o+int(x) > len(data) {
@@ -358,7 +360,7 @@ func decodeBatchToMem(data []byte, expectSeq uint64, mdb *memdb.DB) (seq uint64,
 		if i >= batchLen {
 			return newErrBatchCorrupted("invalid records length")
 		}
-		ik = makeInternalKey(ik, index.k(data), seq+uint64(i), index.keyType)
+		ik = dbkey.MakeInternalKey(ik, index.k(data), seq+uint64(i), index.KeyType)
 		if err := mdb.Put(ik, index.v(data)); err != nil {
 			return err
 		}

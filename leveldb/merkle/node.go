@@ -107,48 +107,25 @@ type ProofNode struct {
 }
 
 // Verify verifies the Merkle proof
-func (p *MerkleProof) Verify(key, value []byte) bool {
+func (p *MerkleProof) Verify(leafHash Hash) bool {
 	if !p.Exists {
 		// For non-existence proofs, we need special handling
 		// This would require proving the absence via adjacent keys
 		return true // Simplified for now
 	}
 
-	// Start with the leaf hash
-	currentHash := HashLeaf(key, value)
 	// Hash up the tree using the proof path
 	for i := 0; i < len(p.Path); i++ {
 		sibling := p.Path[i]
 		if sibling.IsLeft {
 			// Sibling is on the left, we are on the right
-			currentHash = HashInternal(sibling.Hash, currentHash)
+			leafHash = HashInternal(sibling.Hash, leafHash)
 		} else {
 			// Sibling is on the right, we are on the left
-			currentHash = HashInternal(currentHash, sibling.Hash)
+			leafHash = HashInternal(leafHash, sibling.Hash)
 		}
 	}
 
 	// Final hash should match the root
-	return currentHash.Equal(p.Root)
-}
-
-// CombineWithLayerProof combines a value proof with additional layer information.
-// This is used when we have a proof from one layer (e.g., SST) and want to
-// incorporate it into the overall database proof structure.
-func CombineWithLayerProof(baseProof *MerkleProof, layerRoot Hash, layerLevel int) *MerkleProof {
-	if baseProof == nil {
-		return nil
-	}
-
-	// Create a copy of the base proof
-	combined := &MerkleProof{
-		Exists: baseProof.Exists,
-		Path:   append([]ProofNode(nil), baseProof.Path...),
-	}
-
-	// Add layer information to the proof
-	// The layer root becomes part of the combined tree
-	combined.Root = BuildTreeFromHashes([]Hash{baseProof.Root, layerRoot})
-
-	return combined
+	return leafHash.Equal(p.Root)
 }
