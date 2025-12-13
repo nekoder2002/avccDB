@@ -4,14 +4,8 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="780a31d1-23f1-4705-8cfe-bd38cdb10a6f" name="更改" comment="提交merkle">
-      <change afterPath="$PROJECT_DIR$/.idea/go.imports.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/leveldb/db_proof.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/leveldb/dbkey/util.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/leveldb/mlsm_provenance_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/API参考.md" beforeDir="false" />
+    <list default="true" id="780a31d1-23f1-4705-8cfe-bd38cdb10a6f" name="更改" comment="完成mlsm baseline，修复之前的bug">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作基础.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作接口.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作配置.md" beforeDir="false" />
@@ -213,43 +207,6 @@
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/高级特性/快照.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/高级特性/配置选项.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/高级特性/高级特性.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/meta/repowiki-metadata.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cmd/leveldb-inspector/main.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/batch.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/batch.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/batch_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/batch_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/comparer.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/comparer.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/comparer_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/comparer_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/db.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/db_compaction.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_compaction.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/db_iter.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_iter.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/db_snapshot.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_snapshot.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/db_state.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_state.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/db_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/db_transaction.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_transaction.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/db_write.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/db_write.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/filter.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/filter.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/key.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/dbkey/key.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/key_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/key_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/memdb/memdb_merkle.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/memdb/memdb_merkle.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/merkle/node.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/merkle/node.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/merkle/tree.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/merkle/tree.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/merkle/tree_serializer.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/merkle/tree_serializer.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_final_comprehensive_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/mlsm_final_comprehensive_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/mlsm_version_history_test.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/session.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/session_compaction.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session_compaction.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/session_record.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session_record.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/session_record_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session_record_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/session_util.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/session_util.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/table.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/table.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/table/merkle_test.go" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/table/reader.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/table/reader.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/table/writer.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/table/writer.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/table_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/table_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/testutil_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/testutil_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/version.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/version.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/leveldb/version_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/leveldb/version_test.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -292,37 +249,37 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "DefaultGoTemplateProperty": "Go File",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive.executor": "Run",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestProvenanceWithProof.executor": "Run",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionHistory.executor": "Run",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestEmptyTableMerkle.executor": "Run",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestGenerateProofForKey.executor": "Debug",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleProofGeneration.executor": "Run",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleProofWithModifiedData.executor": "Run",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleWriteAndRead.executor": "Debug",
-    "Go 测试.github.com/syndtr/goleveldb/leveldb/vcs 中的 TestNewBVMT.executor": "Run",
-    "Go 测试.go test github.com/syndtr/goleveldb/leveldb/table.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.GoLinterPluginOnboardingV2": "true",
-    "RunOnceActivity.GoLinterPluginStorageMigration": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.go.formatter.settings.were.checked": "true",
-    "RunOnceActivity.go.migrated.go.modules.settings": "true",
-    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "master",
-    "go.import.settings.migrated": "true",
-    "go.sdk.automatically.set": "true",
-    "last_opened_file_path": "/root",
-    "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;DefaultGoTemplateProperty&quot;: &quot;Go File&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive.executor&quot;: &quot;Run&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestProvenanceWithProof.executor&quot;: &quot;Run&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionHistory.executor&quot;: &quot;Run&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestEmptyTableMerkle.executor&quot;: &quot;Run&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestGenerateProofForKey.executor&quot;: &quot;Debug&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleProofGeneration.executor&quot;: &quot;Run&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleProofWithModifiedData.executor&quot;: &quot;Run&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestMerkleWriteAndRead.executor&quot;: &quot;Debug&quot;,
+    &quot;Go 测试.github.com/syndtr/goleveldb/leveldb/vcs 中的 TestNewBVMT.executor&quot;: &quot;Run&quot;,
+    &quot;Go 测试.go test github.com/syndtr/goleveldb/leveldb/table.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.GoLinterPluginOnboardingV2&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.GoLinterPluginStorageMigration&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.modules.go.list.on.any.changes.was.set&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
+    &quot;go.sdk.automatically.set&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/root&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;
   }
-}]]></component>
+}</component>
   <component name="RdControllerToolWindowsLayoutState" isNewUi="true">
     <layout>
       <window_info id="Bookmarks" side_tool="true" />
@@ -339,7 +296,7 @@
       <window_info anchor="bottom" id="TypeScript" />
       <window_info anchor="bottom" id="TODO" />
       <window_info anchor="bottom" id="File Transfer" />
-      <window_info anchor="bottom" id="Version Control" order="0" weight="0.3298636" />
+      <window_info active="true" anchor="bottom" id="Version Control" order="0" visible="true" weight="0.3298636" />
       <window_info anchor="bottom" id="Problems" order="1" />
       <window_info anchor="bottom" id="Problems View" order="2" weight="0.3298636" />
       <window_info anchor="bottom" id="Terminal" order="3" weight="0.3298636" />
@@ -431,10 +388,10 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive" />
-        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestProvenanceWithProof" />
-        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionHistory" />
         <item itemvalue="Go 测试.go test github.com/syndtr/goleveldb/leveldb/table" />
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionHistory" />
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestProvenanceWithProof" />
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive" />
         <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestEmptyTableMerkle" />
       </list>
     </recent_temporary>
@@ -466,7 +423,19 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="origin/mlsm" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
@@ -474,7 +443,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="修正merkle证明" />
-    <option name="LAST_COMMIT_MESSAGE" value="修正merkle证明" />
+    <MESSAGE value="完成mlsm baseline，修复之前的bug" />
+    <option name="LAST_COMMIT_MESSAGE" value="完成mlsm baseline，修复之前的bug" />
   </component>
   <component name="XDebuggerManager">
     <watches-manager>
