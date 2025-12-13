@@ -5,7 +5,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="780a31d1-23f1-4705-8cfe-bd38cdb10a6f" name="更改" comment="完成mlsm baseline，修复之前的bug">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作基础.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作接口.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.qoder/repowiki/zh/content/API参考/批量操作接口/批量操作配置.md" beforeDir="false" />
@@ -224,7 +223,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="master" />
+        <entry key="$PROJECT_DIR$" value="mlsm" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -288,18 +287,18 @@
       <window_info id="Commit_Guest" show_stripe_button="false" />
       <window_info id="Pull Requests" />
       <window_info id="Learn" show_stripe_button="false" />
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.17864116" />
-      <window_info id="Commit" order="1" weight="0.17864116" />
+      <window_info content_ui="combo" id="Project" order="0" weight="0.17864116" />
+      <window_info active="true" id="Commit" order="1" visible="true" weight="0.17864116" />
       <window_info id="VcsChanges" order="2" weight="0.20558375" />
       <window_info id="Structure" order="2" side_tool="true" weight="0.25" />
       <window_info anchor="bottom" id="Database Changes" />
       <window_info anchor="bottom" id="TypeScript" />
       <window_info anchor="bottom" id="TODO" />
       <window_info anchor="bottom" id="File Transfer" />
-      <window_info active="true" anchor="bottom" id="Version Control" order="0" visible="true" weight="0.3298636" />
+      <window_info anchor="bottom" id="Version Control" order="0" weight="0.3298636" />
       <window_info anchor="bottom" id="Problems" order="1" />
       <window_info anchor="bottom" id="Problems View" order="2" weight="0.3298636" />
-      <window_info anchor="bottom" id="Terminal" order="3" weight="0.3298636" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="3" visible="true" weight="0.3298636" />
       <window_info anchor="bottom" id="Services" order="4" />
       <window_info anchor="bottom" id="Debug" order="5" weight="0.3298636" />
       <window_info anchor="bottom" id="Find" order="5" weight="0.3298636" />
@@ -314,7 +313,7 @@
       <window_info anchor="right" id="Gradle" order="3" weight="0.25" />
       <window_info anchor="right" id="Maven" order="4" weight="0.25" />
       <window_info anchor="right" id="Translation.Wordbook" order="5" side_tool="true" />
-      <window_info anchor="right" id="Qoder" order="5" weight="0.2348692" />
+      <window_info anchor="right" id="Qoder" order="6" weight="0.2348692" />
     </layout>
   </component>
   <component name="RecentsManager">
@@ -429,7 +428,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="origin/mlsm" />
+                        <option value="master" />
                       </list>
                     </value>
                   </entry>
