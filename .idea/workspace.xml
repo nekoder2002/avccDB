@@ -191,10 +191,10 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive" />
         <item itemvalue="Go 测试.go test github.com/syndtr/goleveldb/leveldb/table" />
         <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestVersionHistory" />
         <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestProvenanceWithProof" />
+        <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb 中的 TestMLSMFinalComprehensive" />
         <item itemvalue="Go 测试.github.com/syndtr/goleveldb/leveldb/table 中的 TestEmptyTableMerkle" />
       </list>
     </recent_temporary>
