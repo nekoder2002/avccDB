@@ -1609,10 +1609,29 @@ func (db *DB) SizeOf(ranges []util.Range) (Sizes, error) {
 func (db *DB) ComputeMasterRoot(v *version) merkle.Hash {
 	defer v.release()
 
-	// Collect layer roots from each level
+	// Collect layer roots from all layers
+	// Order: [MemDB root, Level0 root, Level1 root, ...]
+	// Same order as buildMemDBProof and generateMasterProof
 	var layerRoots []merkle.Hash
 
-	// Process each level
+	// Add MemDB root if available (same as buildMemDBProof and generateMasterProof)
+	em, fm := db.getMems()
+	for _, m := range [...]*memDB{em, fm} {
+		if m == nil {
+			continue
+		}
+		defer m.decref()
+
+		if m.Len() > 0 {
+			// Build MemDB snapshot to get root
+			memRoot := m.DB.GetMerkleRoot()
+			layerRoots = append(layerRoots, memRoot)
+			db.logf("master@root memdb layer_root=%x num_entries=%d", memRoot[:8], m.Len())
+			break // Only use the first non-empty memdb
+		}
+	}
+
+	// Process each level to collect layer roots
 	for level, tables := range v.levels {
 		if len(tables) == 0 {
 			continue
@@ -1636,46 +1655,6 @@ func (db *DB) ComputeMasterRoot(v *version) merkle.Hash {
 			db.logf("master@root level=%d layer_root=%x num_ssts=%d", level, layerRoot[:8], len(sstRoots))
 		}
 	}
-
-	//// Add MemDB root if available (Level -1)
-	//// Build Merkle tree from current memdb data
-	//em, fm := db.getMems()
-	//for _, m := range [...]*memDB{em, fm} {
-	//	if m == nil {
-	//		continue
-	//	}
-	//	defer m.decref()
-	//
-	//	// Build Merkle tree from memdb entries
-	//	if m.Len() > 0 {
-	//		iter := m.NewIterator(nil)
-	//		defer iter.Release()
-	//
-	//		var leaves []merkle.Hash
-	//		for iter.Next() {
-	//			key := iter.Key()
-	//			value := iter.Value()
-	//			// Parse the internal key to extract user key and version
-	//			uvkey, _, kt, kerr := ParseInternalKey(key)
-	//			if kerr != nil {
-	//				continue // Skip invalid keys
-	//			}
-	//			if kt == KeyTypeDel {
-	//				continue // Skip deletion markers
-	//			}
-	//			leaves = append(leaves, merkle.HashLeaf(uvkey, value))
-	//		}
-	//
-	//		if len(leaves) > 0 {
-	//			// Build Merkle tree from memdb entries
-	//			tree := merkle.NewMerkleTree(leaves)
-	//			// Treat memdb as a special layer (Layer -1)
-	//			layerRoots = append(layerRoots, tree.GetRoot())
-	//			db.logf("master@root memdb layer_root=%x num_entries=%d", tree.GetRoot(), len(leaves))
-	//		}
-	//	}
-	//}
-	// Compute final MasterRoot from all layer roots
 	if len(layerRoots) == 0 {
 		return merkle.Hash{} // Empty hash
 	}
@@ -1686,26 +1665,39 @@ func (db *DB) ComputeMasterRoot(v *version) merkle.Hash {
 	return masterRoot
 }
 
-//// updateMasterRoot updates the master root by recomputing it.
-//// This is called after flush or compaction operations.
-//func (db *DB) updateMasterRoot() {
-//	db.masterRootMu.Lock()
-//	defer db.masterRootMu.Unlock()
-//
-//	newRoot := db.computeMasterRoot()
-//	db.masterRoot = newRoot
-//	db.logf("master@root updated root=%x", newRoot[:8])
-//}
-
 // generateMasterProof generates a Merkle proof for a layer within the master tree.
 // The proof shows that a specific layer's root is part of the master tree.
 // layerProof.Root is used to identify which layer we're proving.
 func (db *DB) generateMasterProof(v *version, currentLayerRoot merkle.Hash) (*merkle.MerkleProof, error) {
-	// Collect all layer roots in the same order as computeMasterRoot
+	// Collect all layer roots in the same order as buildMemDBProof
+	// Order: [MemDB root, Level0 root, Level1 root, ...]
 	var layerRoots []merkle.Hash
 	targetIndex := -1
 
-	// Process each level to collect layer roots
+	// Add MemDB root if available (same as buildMemDBProof)
+	em, fm := db.getMems()
+	for _, m := range [...]*memDB{em, fm} {
+		if m == nil {
+			continue
+		}
+		defer m.decref()
+
+		if m.Len() > 0 {
+			// Build MemDB snapshot to get root
+			memRoot := m.DB.GetMerkleRoot()
+
+			// Check if memdb is the target layer
+			if memRoot.Equal(currentLayerRoot) {
+				targetIndex = len(layerRoots)
+			}
+
+			layerRoots = append(layerRoots, memRoot)
+			db.logf("master@proof memdb layer_root=%x num_entries=%d", memRoot[:8], m.Len())
+			break // Only use the first non-empty memdb
+		}
+	}
+
+	// Process each level to collect layer roots (same order as buildMemDBProof)
 	for level, tables := range v.levels {
 		if len(tables) == 0 {
 			continue
@@ -1732,47 +1724,6 @@ func (db *DB) generateMasterProof(v *version, currentLayerRoot merkle.Hash) (*me
 			db.logf("master@proof level=%d layer_root=%x num_ssts=%d", level, layerRoot[:8], len(sstRoots))
 		}
 	}
-
-	//// Add MemDB root if available
-	//em, fm := db.getMems()
-	//for _, m := range [...]*memDB{em, fm} {
-	//	if m == nil {
-	//		continue
-	//	}
-	//	defer m.decref()
-	//
-	//	if m.Len() > 0 {
-	//		iter := m.NewIterator(nil)
-	//		defer iter.Release()
-	//
-	//		var leaves []merkle.Hash
-	//		for iter.Next() {
-	//			key := iter.Key()
-	//			value := iter.Value()
-	//			uvkey, _, kt, kerr := ParseInternalKey(key)
-	//			if kerr != nil {
-	//				continue
-	//			}
-	//			if kt == KeyTypeDel {
-	//				continue
-	//			}
-	//			leaves = append(leaves, merkle.HashLeaf(uvkey, value))
-	//		}
-	//
-	//		if len(leaves) > 0 {
-	//			tree := merkle.NewMerkleTree(leaves)
-	//			memdbRoot := tree.GetRoot()
-	//
-	//			// Check if memdb is the target layer
-	//			if memdbRoot.Equal(currentLayerRoot) {
-	//				targetIndex = len(layerRoots)
-	//			}
-	//
-	//			layerRoots = append(layerRoots, memdbRoot)
-	//			db.logf("master@proof memdb layer_root=%x num_entries=%d", memdbRoot[:8], len(leaves))
-	//		}
-	//	}
-	//}
 
 	if len(layerRoots) == 0 {
 		return nil, nil

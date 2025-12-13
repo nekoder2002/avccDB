@@ -8,13 +8,6 @@ import (
 // ProofSource indicates where the data was found
 type ProofSource int
 
-const (
-	// ProofSourceSST indicates data was found in SST file
-	ProofSourceSST ProofSource = iota
-	// ProofSourceMemDB indicates data was found in MemDB (effective or frozen)
-	ProofSourceMemDB
-)
-
 // DBProof contains the complete Merkle proof chain for a key-value pair.
 // The proof structure supports data from both MemDB and SST files.
 //

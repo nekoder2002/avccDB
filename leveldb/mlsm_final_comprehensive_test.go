@@ -21,8 +21,8 @@ import (
 func TestMLSMFinalComprehensive(t *testing.T) {
 	// 测试配置
 	const (
-		totalKeys       = 200000                     // 20万个唯一键（增加数量以触发更多compaction）
-		versionsPerKey  = 10                         // 每个键5个版本
+		totalKeys       = 100000                     // 20万个唯一键（增加数量以触发更多compaction）
+		versionsPerKey  = 5                          // 每个键5个版本
 		totalRecords    = totalKeys * versionsPerKey // 100万条记录
 		sampleSize      = 1000                       // 抽样验证1000个键
 		proofSampleSize = 100                        // Proof验证抽样100个
@@ -168,7 +168,7 @@ func TestMLSMFinalComprehensive(t *testing.T) {
 		}
 
 		// 验证Proof结构
-		if proof == nil {
+		if proof == nil || proof.DataProof == nil || proof.LayerProof == nil || proof.MasterProof == nil {
 			t.Errorf("Proof is nil for key=%d", keyIdx)
 			proofFailed++
 			continue

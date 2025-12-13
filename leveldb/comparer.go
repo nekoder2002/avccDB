@@ -7,8 +7,6 @@
 package leveldb
 
 import (
-	"encoding/binary"
-
 	"github.com/syndtr/goleveldb/leveldb/dbkey"
 
 	"github.com/syndtr/goleveldb/leveldb/comparer"
@@ -39,47 +37,24 @@ func (icmp *iComparer) Name() string {
 }
 
 // Compare compares two internal keys with version support.
-// Key format: ukey | version (8 bytes) | seq+type (8 bytes)
-// Ordering:
-//  1. ukey (ascending)
-//  2. version (descending) - higher version first
-//  3. seq (descending) - higher seq first
 func (icmp *iComparer) Compare(a, b []byte) int {
-	// Both keys must be versioned (at least 16 bytes for version + seq)
-	if len(a) < 16 || len(b) < 16 {
-		// Fallback to simple comparison
-		return icmp.ucmp.Compare(a, b)
-	}
-
-	// Extract ukey (without version and seq)
-	ukeyA := a[:len(a)-16]
-	ukeyB := b[:len(b)-16]
-
-	// First compare ukey (ascending)
+	ukeyA, versionA, _, ikA, _ := dbkey.ParseInternalKeyWithVersion(a)
+	ukeyB, versionB, _, ikB, _ := dbkey.ParseInternalKeyWithVersion(b)
 	x := icmp.uCompare(ukeyA, ukeyB)
-	if x != 0 {
-		return x
+	if x == 0 {
+		if versionA > versionB {
+			return -1 // Higher version comes first
+		} else if versionA < versionB {
+			return 1
+		}
+		if ikA > ikB {
+			return -1
+		} else if ikA < ikB {
+			return 1
+		}
 	}
 
-	// Same ukey, compare version (descending - higher version first)
-	versionA := binary.LittleEndian.Uint64(a[len(a)-16 : len(a)-8])
-	versionB := binary.LittleEndian.Uint64(b[len(b)-16 : len(b)-8])
-	if versionA > versionB {
-		return -1 // Higher version comes first
-	} else if versionA < versionB {
-		return 1
-	}
-
-	// Same version, compare seq (descending - higher seq first)
-	seqA := binary.LittleEndian.Uint64(a[len(a)-8:])
-	seqB := binary.LittleEndian.Uint64(b[len(b)-8:])
-	if seqA > seqB {
-		return -1
-	} else if seqA < seqB {
-		return 1
-	}
-
-	return 0
+	return x
 }
 
 func (icmp *iComparer) Separator(dst, a, b []byte) []byte {
